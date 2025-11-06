@@ -11,6 +11,16 @@ export const MODEL_PROVIDERS = [
     defaultEndpoint: 'https://api.openai.com/v1/',
     defaultModels: ['gpt-4o', 'gpt-4o-mini', 'o1-mini']
   },
+  // CUSTOM: 自定义OpenAI配置 - 从环境变量读取 (迁移自1.4.0)
+  {
+    id: 'openai-custom',
+    name: 'OpenAI (Custom)',
+    defaultEndpoint: process.env.OPENAI_CUSTOM_ENDPOINT || '',
+    defaultModels: [process.env.OPENAI_CUSTOM_MODEL_NAME || ''],
+    defaultApiKey: process.env.OPENAI_CUSTOM_API_KEY || '',
+    defaultTemperature: parseFloat(process.env.OPENAI_CUSTOM_TEMPERATURE) || 0.7,
+    defaultMaxTokens: parseInt(process.env.OPENAI_CUSTOM_MAX_TOKENS) || 16384
+  },
   {
     id: 'siliconcloud',
     name: '硅基流动',
@@ -81,3 +91,6 @@ export const DEFAULT_MODEL_SETTINGS = {
   maxTokens: 8192,
   topP: 0.9
 };
+
+// CUSTOM: 默认项目模型配置ID (迁移自1.4.0)
+export const DEFAULT_PROJECT_MODEL_PROVIDER_ID = 'openai-custom';

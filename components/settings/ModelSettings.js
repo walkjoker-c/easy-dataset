@@ -131,11 +131,17 @@ export default function ModelSettings({ projectId }) {
       const selectedProvider = providerList.find(p => p.id === newValue.id);
       if (selectedProvider) {
         setSelectedProvider(selectedProvider);
+
+        // CUSTOM: 从MODEL_PROVIDERS获取默认API Key (修复批次3测试问题1)
+        const providerConfig = MODEL_PROVIDERS.find(p => p.id === selectedProvider.id);
+        const defaultApiKey = providerConfig?.defaultApiKey || '';
+
         setModelConfigForm(prev => ({
           ...prev,
           providerId: selectedProvider.id,
           endpoint: selectedProvider.apiUrl,
           providerName: selectedProvider.name,
+          apiKey: defaultApiKey, // CUSTOM: 设置默认API Key
           modelName: ''
         }));
         getProviderModels(newValue.id);
