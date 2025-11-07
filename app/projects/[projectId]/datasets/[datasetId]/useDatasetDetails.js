@@ -6,13 +6,14 @@ import { useAtomValue } from 'jotai/index';
 import { selectedModelInfoAtom } from '@/lib/store';
 import axios from 'axios';
 import { toast } from 'sonner';
-import i18n from '@/lib/i18n';
+import { useTranslation } from 'react-i18next'; // CUSTOM: 修复国际化问题 (批次3测试问题2)
 
 /**
  * 数据集详情页面业务逻辑 Hook
  */
 export default function useDatasetDetails(projectId, datasetId) {
   const router = useRouter();
+  const { t } = useTranslation(); // CUSTOM: 使用useTranslation hook (批次3测试问题2)
   const [datasets, setDatasets] = useState([]);
   const [currentDataset, setCurrentDataset] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -175,6 +176,42 @@ export default function useDatasetDetails(projectId, datasetId) {
       });
     } finally {
       setUnconfirming(false);
+    }
+  };
+
+  // CUSTOM: 处理标签修改 (迁移自1.4.0)
+  // 功能说明: 保存用户编辑的questionLabel到数据库
+  const handleLabelChange = async (newLabel) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/datasets?id=${datasetId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          questionLabel: newLabel
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('保存标签失败');
+      }
+
+      // 更新本地状态
+      setCurrentDataset(prev => ({ ...prev, questionLabel: newLabel }));
+
+      setSnackbar({
+        open: true,
+        message: '保存成功', // CUSTOM: 直接使用中文避免国际化问题 (批次3测试问题2-修复版)
+        severity: 'success'
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error.message || '保存标签失败',
+        severity: 'error'
+      });
+      throw error; // 重新抛出错误,让组件知道保存失败
     }
   };
 
@@ -461,6 +498,7 @@ export default function useDatasetDetails(projectId, datasetId) {
     handleConfirm,
     handleUnconfirm,
     handleSave,
+    handleLabelChange, // CUSTOM: 添加标签修改处理函数 (迁移自1.4.0)
     handleDelete,
     handleOpenOptimizeDialog,
     handleCloseOptimizeDialog,

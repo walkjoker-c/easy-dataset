@@ -148,7 +148,8 @@ export async function PATCH(request) {
   try {
     const { searchParams } = new URL(request.url);
     const datasetId = searchParams.get('id');
-    const { answer, cot, question, confirmed } = await request.json();
+    // CUSTOM: 添加questionLabel字段支持 (修复批次3测试问题3)
+    const { answer, cot, question, confirmed, questionLabel } = await request.json();
     if (!datasetId) {
       return NextResponse.json(
         {
@@ -172,6 +173,8 @@ export async function PATCH(request) {
     if (answer) data.answer = answer;
     if (cot) data.cot = cot;
     if (question) data.question = question;
+    // CUSTOM: 支持questionLabel字段更新 (修复批次3测试问题3)
+    if (questionLabel !== undefined) data.questionLabel = questionLabel;
 
     // 保存更新后的数据集列表
     await updateDataset(data);

@@ -1,5 +1,8 @@
 import { createProject, getProjects, isExistByName } from '@/lib/db/projects';
 import { createInitModelConfig, getModelConfigByProjectId } from '@/lib/db/model-config';
+// CUSTOM: 导入默认模型配置 (修复批次3测试问题1-正确版)
+import { MODEL_PROVIDERS, DEFAULT_PROJECT_MODEL_PROVIDER_ID } from '@/constant/model';
+import { nanoid } from 'nanoid';
 
 export async function POST(request) {
   try {
@@ -27,6 +30,29 @@ export async function POST(request) {
         };
       });
       await createInitModelConfig(newData);
+    } else {
+      // CUSTOM: 创建默认模型配置 (修复批次3测试问题1-正确版)
+      // 如果没有复用配置,则创建默认的openai-custom模型配置
+      const defaultProvider = MODEL_PROVIDERS.find(p => p.id === DEFAULT_PROJECT_MODEL_PROVIDER_ID);
+      if (defaultProvider) {
+        const defaultModelConfig = {
+          id: nanoid(12),
+          projectId: newProject.id,
+          providerId: defaultProvider.id,
+          providerName: defaultProvider.name,
+          endpoint: defaultProvider.defaultEndpoint,
+          apiKey: defaultProvider.defaultApiKey || '',
+          modelId: defaultProvider.defaultModels[0] || '',
+          modelName: defaultProvider.defaultModels[0] || '',
+          type: 'text',
+          temperature: defaultProvider.defaultTemperature || 0.7,
+          maxTokens: defaultProvider.defaultMaxTokens || 16384,
+          topP: 1,
+          topK: 0,
+          status: 1
+        };
+        await createInitModelConfig([defaultModelConfig]);
+      }
     }
     return Response.json(newProject, { status: 201 });
   } catch (error) {

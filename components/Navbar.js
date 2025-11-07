@@ -169,22 +169,27 @@ export default function Navbar({ projects = [], currentProject }) {
       >
         {/* 左侧Logo和项目选择 */}
         <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 0 }}>
+          {/* CUSTOM: 禁用品牌Logo/名称点击跳转 (批次4定制增强) */}
+          {/* 理由: 后续一个项目对应一个用户,主界面是管理员界面,普通用户不能跳转 */}
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
-              mr: 2,
-              '&:hover': { opacity: 0.9 }
+              mr: 2
+              // CUSTOM: 注释掉hover效果,禁止点击跳转到主界面
+              // '&:hover': { opacity: 0.9 }
             }}
-            style={{ cursor: 'pointer', '&:hover': { opacity: 0.9 } }}
-            onClick={() => {
-              window.location.href = '/';
-            }}
+            // CUSTOM: 注释掉cursor和onClick,禁止点击跳转到主界面
+            // style={{ cursor: 'pointer', '&:hover': { opacity: 0.9 } }}
+            // onClick={() => {
+            //   window.location.href = '/';
+            // }}
           >
+            {/* CUSTOM: 自定义Logo和品牌名称 (迁移自1.4.0) */}
             <Box
               component="img"
-              src="/imgs/logo.svg"
-              alt="Easy Dataset Logo"
+              src={process.env.NEXT_PUBLIC_BRAND_LOGO || "/imgs/夸夸logo-05.png"}
+              alt={process.env.NEXT_PUBLIC_BRAND_NAME || "夸夸Logo"}
               sx={{
                 width: 28,
                 height: 28,
@@ -202,11 +207,13 @@ export default function Navbar({ projects = [], currentProject }) {
               className={theme.palette.mode === 'dark' ? 'gradient-text' : ''}
               color={theme.palette.mode === 'dark' ? 'inherit' : 'white'}
             >
-              Easy DataSet
+              {/* CUSTOM: 使用国际化品牌名称 (迁移自1.4.0) */}
+              {t('app.title')}
             </Typography>
           </Box>
 
-          {isProjectDetail && (
+          {/* CUSTOM: 项目切换器可通过环境变量控制显示/隐藏 (迁移自1.4.0) */}
+          {isProjectDetail && process.env.NEXT_PUBLIC_ENABLE_PROJECT_SWITCHER !== 'false' && (
             <FormControl size="small" sx={{ minWidth: 100 }}>
               <Select
                 value={selectedProject}
@@ -536,49 +543,53 @@ export default function Navbar({ projects = [], currentProject }) {
             </IconButton>
           </Tooltip>
 
-          {/* 文档链接 */}
-          <Tooltip title={t('documentation')}>
-            <IconButton
-              href={
-                i18n.language === 'zh-CN' ? 'https://docs.easy-dataset.com/' : 'https://docs.easy-dataset.com/ed/en'
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              size="small"
-              sx={{
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)',
-                color: theme.palette.mode === 'dark' ? 'inherit' : 'white',
-                p: 1,
-                borderRadius: 1.5,
-                '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.25)'
-                },
-                mr: 1,
-                marginRight: 0
-              }}
-            >
-              <HelpOutlineIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-
-          {/* GitHub链接 */}
-          <Tooltip title={t('common.visitGitHub')}>
-            <IconButton
-              onClick={() => window.open('https://github.com/ConardLi/easy-dataset', '_blank')}
-              size="small"
-              sx={{
-                bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)',
-                color: theme.palette.mode === 'dark' ? 'inherit' : 'white',
-                p: 1,
-                borderRadius: 1.5,
-                '&:hover': {
-                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.25)'
+          {/* CUSTOM: 文档链接可通过环境变量控制显示/隐藏 (迁移自1.4.0) */}
+          {process.env.NEXT_PUBLIC_ENABLE_DOCS_LINK !== 'false' && (
+            <Tooltip title={t('documentation')}>
+              <IconButton
+                href={
+                  i18n.language === 'zh-CN' ? 'https://docs.easy-dataset.com/' : 'https://docs.easy-dataset.com/ed/en'
                 }
-              }}
-            >
-              <GitHubIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+                target="_blank"
+                rel="noopener noreferrer"
+                size="small"
+                sx={{
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)',
+                  color: theme.palette.mode === 'dark' ? 'inherit' : 'white',
+                  p: 1,
+                  borderRadius: 1.5,
+                  '&:hover': {
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.25)'
+                  },
+                  mr: 1,
+                  marginRight: 0
+                }}
+              >
+                <HelpOutlineIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {/* CUSTOM: GitHub链接可通过环境变量控制显示/隐藏 (迁移自1.4.0) */}
+          {process.env.NEXT_PUBLIC_ENABLE_GITHUB_LINK !== 'false' && (
+            <Tooltip title={t('common.visitGitHub')}>
+              <IconButton
+                onClick={() => window.open('https://github.com/ConardLi/easy-dataset', '_blank')}
+                size="small"
+                sx={{
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)',
+                  color: theme.palette.mode === 'dark' ? 'inherit' : 'white',
+                  p: 1,
+                  borderRadius: 1.5,
+                  '&:hover': {
+                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.25)'
+                  }
+                }}
+              >
+                <GitHubIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
 
           {/* 更新检查器 */}
           <UpdateChecker />

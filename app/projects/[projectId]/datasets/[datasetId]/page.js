@@ -48,6 +48,7 @@ export default function DatasetDetailsPage({ params }) {
     setEditingCot,
     setEditingQuestion,
     handleNavigate,
+    handleLabelChange, // CUSTOM: 添加标签修改处理函数 (迁移自1.4.0)
     handleConfirm,
     handleUnconfirm,
     handleSave,
@@ -161,7 +162,12 @@ export default function DatasetDetailsPage({ params }) {
           }}
         >
           {/* 数据集元数据信息 */}
-          <DatasetMetadata currentDataset={currentDataset} onViewChunk={handleViewChunk} />
+          {/* CUSTOM: 添加onLabelChange属性支持标签编辑 (迁移自1.4.0) */}
+          <DatasetMetadata
+            currentDataset={currentDataset}
+            onViewChunk={handleViewChunk}
+            onLabelChange={handleLabelChange}
+          />
 
           {/* 评分、标签、备注区域 */}
           <DatasetRatingSection

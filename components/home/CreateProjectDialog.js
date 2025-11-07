@@ -78,7 +78,33 @@ export default function CreateProjectDialog({ open, onClose }) {
 
       const data = await response.json();
 
-      router.push(`/projects/${data.id}/settings?tab=model`);
+      // CUSTOM: 智能跳转逻辑 (批次3新增特性)
+      // 检查新项目是否有完整的模型配置,如果有则跳转到text-split,否则跳转到settings
+      try {
+        const modelConfigResponse = await fetch(`/api/projects/${data.id}/model-config`);
+        if (modelConfigResponse.ok) {
+          const modelConfigData = await modelConfigResponse.json();
+          const hasCompleteModel = modelConfigData.data &&
+            modelConfigData.data.length > 0 &&
+            modelConfigData.data.some(config =>
+              config.apiKey && config.endpoint && config.modelName
+            );
+
+          // 如果有完整模型配置,跳转到text-split;否则跳转到settings
+          if (hasCompleteModel) {
+            router.push(`/projects/${data.id}/text-split`);
+          } else {
+            router.push(`/projects/${data.id}/settings?tab=model`);
+          }
+        } else {
+          // 如果获取模型配置失败,默认跳转到settings
+          router.push(`/projects/${data.id}/settings?tab=model`);
+        }
+      } catch (modelConfigError) {
+        // 如果检查模型配置出错,默认跳转到settings
+        console.error('检查模型配置失败:', modelConfigError);
+        router.push(`/projects/${data.id}/settings?tab=model`);
+      }
     } catch (err) {
       console.error(t('projects.createError'), err);
       setError(err.message);
