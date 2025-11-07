@@ -1,4 +1,4 @@
-import { createProject, getProjects, isExistByName } from '@/lib/db/projects';
+import { createProject, getProjects, isExistByName, updateProject } from '@/lib/db/projects';
 import { createInitModelConfig, getModelConfigByProjectId } from '@/lib/db/model-config';
 // CUSTOM: 导入默认模型配置 (修复批次3测试问题1-正确版)
 import { MODEL_PROVIDERS, DEFAULT_PROJECT_MODEL_PROVIDER_ID } from '@/constant/model';
@@ -29,7 +29,15 @@ export async function POST(request) {
           projectId: newProject.id
         };
       });
-      await createInitModelConfig(newData);
+      const createdConfigs = await createInitModelConfig(newData);
+
+      // CUSTOM: 设置默认模型配置ID (修复GA生成"No active model"错误)
+      // 将第一个创建的模型配置设为项目默认配置
+      if (createdConfigs && createdConfigs.length > 0) {
+        newProject.defaultModelConfigId = createdConfigs[0].id;
+        await updateProject(newProject.id, newProject);
+      }
+      // END CUSTOM
     } else {
       // CUSTOM: 创建默认模型配置 (修复批次3测试问题1-正确版)
       // 如果没有复用配置,则创建默认的openai-custom模型配置
@@ -52,6 +60,12 @@ export async function POST(request) {
           status: 1
         };
         await createInitModelConfig([defaultModelConfig]);
+
+        // CUSTOM: 设置默认模型配置ID (修复GA生成"No active model"错误)
+        // 将创建的模型配置设为项目默认配置
+        newProject.defaultModelConfigId = defaultModelConfig.id;
+        await updateProject(newProject.id, newProject);
+        // END CUSTOM
       }
     }
     return Response.json(newProject, { status: 201 });

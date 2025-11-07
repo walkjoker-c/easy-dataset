@@ -3,7 +3,7 @@
 // 访问路径: /api/projects/employee/[employeeId]
 // 业务场景: 数智员工通过employeeId快速创建训练项目
 import { NextResponse } from 'next/server';
-import { createProject, isExistByName, getProjects } from '@/lib/db/projects';
+import { createProject, isExistByName, getProjects, updateProject } from '@/lib/db/projects';
 // CUSTOM: 导入模型配置相关 (批次3新增特性)
 import { createInitModelConfig } from '@/lib/db/model-config';
 import { MODEL_PROVIDERS, DEFAULT_PROJECT_MODEL_PROVIDER_ID } from '@/constant/model';
@@ -68,6 +68,13 @@ export async function GET(request, { params }) {
       };
       await createInitModelConfig([defaultModelConfig]);
       console.log(`为项目 ${newProject.id} 创建了默认模型配置`);
+
+      // CUSTOM: 设置默认模型配置ID (修复GA生成"No active model"错误)
+      // 将创建的模型配置设为项目默认配置
+      newProject.defaultModelConfigId = defaultModelConfig.id;
+      await updateProject(newProject.id, newProject);
+      console.log(`为项目 ${newProject.id} 设置了默认模型配置ID: ${defaultModelConfig.id}`);
+      // END CUSTOM
     }
 
     // 重定向到新项目的text-split页面

@@ -945,6 +945,325 @@ message: '保存成功', // CUSTOM: 直接使用中文避免国际化问题 (批
 
 ---
 
-**文档版本**: v1.0
+## 🎯 批次5: GA生成Bug修复 (P0)
+
+### 状态: ✅ 已完成
+
+### 背景
+在使用批次4完成的定制版本时,用户发现GA(Genre-Audience)对生成功能报错:
+```
+No active model found
+Failed to generate GA pairs: Error: No active model available for GA generation
+```
+
+### 根本原因分析
+
+#### 问题链路
+1. 批次3.5为新项目创建了ModelConfig,包含完整配置(API Key, endpoint, modelName)
+2. 但**未设置** `project.defaultModelConfigId` 字段
+3. GA生成调用 `getActiveModel(projectId)` → 检查 `project.defaultModelConfigId` → 为null
+4. 返回null → 抛出"No active model available"错误
+
+#### 影响范围
+- **新创建的项目**: 无法使用GA生成、可能影响其他依赖`getActiveModel()`的功能
+- **复用配置的项目**: 同样受影响(批次3.5的配置复用分支也未设置defaultModelConfigId)
+- **现有项目**: 如果在bug修复前创建,会持续受影响
+
+#### 对比官方代码
+- 官方1.6.0代码也未设置`defaultModelConfigId`
+- 该字段在数据库schema中存在但从未被正确使用
+- 这是官方代码的潜在bug,被GA生成功能触发暴露出来
+
+---
+
+### 变更内容
+
+#### 1. 修复项目创建API - 设置defaultModelConfigId (P0)
+
+**文件路径**: `app/api/projects/route.js`
+**变更类型**: 代码修改(有标记)
+**代码隔离策略**: 标记修改(策略5)
+
+**变更位置1**: 第32-40行 (配置复用分支)
+```javascript
+const createdConfigs = await createInitModelConfig(newData);
+
+// CUSTOM: 设置默认模型配置ID (修复GA生成"No active model"错误)
+// 将第一个创建的模型配置设为项目默认配置
+if (createdConfigs && createdConfigs.length > 0) {
+  newProject.defaultModelConfigId = createdConfigs[0].id;
+  await updateProject(newProject.id, newProject);
+}
+// END CUSTOM
+```
+
+**变更位置2**: 第64-68行 (新项目默认配置分支)
+```javascript
+await createInitModelConfig([defaultModelConfig]);
+
+// CUSTOM: 设置默认模型配置ID (修复GA生成"No active model"错误)
+// 将创建的模型配置设为项目默认配置
+newProject.defaultModelConfigId = defaultModelConfig.id;
+await updateProject(newProject.id, newProject);
+// END CUSTOM
+```
+
+**功能说明**:
+- 在两个项目创建路径中都设置`defaultModelConfigId`:
+  1. **配置复用路径**: 使用第一个复用的模型配置ID
+  2. **新建配置路径**: 使用新创建的默认模型配置ID
+- 调用`updateProject()`持久化到数据库
+- 确保`getActiveModel(projectId)`能正确查找到默认模型
+
+---
+
+#### 2. 修复员工API - 设置defaultModelConfigId (P0)
+
+**文件路径**: `app/api/projects/employee/[employeeId]/route.js`
+**变更类型**: 代码修改(有标记)
+**代码隔离策略**: 标记修改(策略5)
+
+**变更位置1**: 第6行 (导入)
+```javascript
+import { createProject, isExistByName, getProjects, updateProject } from '@/lib/db/projects';
+```
+
+**变更位置2**: 第72-77行 (设置默认模型)
+```javascript
+await createInitModelConfig([defaultModelConfig]);
+console.log(`为项目 ${newProject.id} 创建了默认模型配置`);
+
+// CUSTOM: 设置默认模型配置ID (修复GA生成"No active model"错误)
+// 将创建的模型配置设为项目默认配置
+newProject.defaultModelConfigId = defaultModelConfig.id;
+await updateProject(newProject.id, newProject);
+console.log(`为项目 ${newProject.id} 设置了默认模型配置ID: ${defaultModelConfig.id}`);
+// END CUSTOM
+```
+
+**功能说明**:
+- 员工API创建项目后设置`defaultModelConfigId`
+- 与主API保持一致的逻辑
+- 添加详细日志便于调试
+
+---
+
+#### 3. 添加防御性Fallback逻辑 (P1 - 推荐)
+
+**文件路径**: `lib/services/models.js`
+**变更类型**: 代码修改(有标记)
+**代码隔离策略**: 标记修改(策略5)
+
+**变更位置1**: 第1行 (导入)
+```javascript
+import { getModelConfigById, getModelConfigByProjectId } from '@/lib/db/model-config';
+```
+
+**变更位置2**: 第23-40行 (fallback逻辑)
+```javascript
+// CUSTOM: 防御性fallback - 如果defaultModelConfigId未设置,尝试查找第一个活跃模型
+// 用途: 兼容旧项目和修复期间创建的项目
+if (project && !project.defaultModelConfigId) {
+  logger.warn(`Project ${projectId} has no defaultModelConfigId, attempting fallback`);
+  const projectModels = await getModelConfigByProjectId(projectId);
+  if (projectModels && projectModels.length > 0) {
+    // 优先查找状态为active(1)的模型
+    const activeModel = projectModels.find(m => m.status === 1);
+    if (activeModel) {
+      logger.info(`Using fallback active model for project ${projectId}: ${activeModel.modelName}`);
+      return activeModel;
+    }
+    // 如果没有active模型,使用第一个模型
+    logger.info(`Using fallback first model for project ${projectId}: ${projectModels[0].modelName}`);
+    return projectModels[0];
+  }
+}
+// END CUSTOM
+```
+
+**功能说明**:
+- **防御性编程**: 当`defaultModelConfigId`为null时,自动查找备用模型
+- **优先级逻辑**:
+  1. 首先使用`defaultModelConfigId`指定的模型(正常路径)
+  2. 如果为空,查找第一个`status=1`(active)的模型
+  3. 如果没有active模型,使用第一个任意状态的模型
+- **兼容性**: 保护在bug修复前创建的项目继续工作
+- **日志记录**: 警告和信息日志便于问题追踪
+
+**业务价值**:
+- 提升系统健壮性,避免因数据不一致导致功能完全不可用
+- 支持平滑过渡,旧项目无需手动修复也能工作
+- 便于问题诊断(日志中明确标记使用了fallback)
+
+---
+
+#### 4. 数据修复脚本 (可选,未执行)
+
+**文件路径**: `scripts/fix-default-model.js`
+**变更类型**: 新增工具脚本
+**代码隔离策略**: 独立文件(策略1)
+
+**功能说明**:
+- 一次性修复所有`defaultModelConfigId=null`的项目
+- 查找项目的第一个active模型配置并设为默认
+- 提供详细的修复报告和统计信息
+
+**使用方式**:
+```bash
+node scripts/fix-default-model.js
+```
+
+**执行状态**: ✅ 脚本已创建但未执行 (因有fallback逻辑,旧项目可正常工作,无需立即修复)
+
+---
+
+### 代码变更对比
+
+#### 修复前 (批次3.5)
+```javascript
+// app/api/projects/route.js (批次3.5版本)
+const defaultModelConfig = { ... };
+await createInitModelConfig([defaultModelConfig]);
+// ❌ 缺少: newProject.defaultModelConfigId = defaultModelConfig.id
+// ❌ 缺少: await updateProject(newProject.id, newProject);
+```
+
+#### 修复后 (批次5)
+```javascript
+// app/api/projects/route.js (批次5版本)
+const defaultModelConfig = { ... };
+await createInitModelConfig([defaultModelConfig]);
+// ✅ 新增: 设置defaultModelConfigId
+newProject.defaultModelConfigId = defaultModelConfig.id;
+await updateProject(newProject.id, newProject);
+```
+
+---
+
+### 测试验证
+
+#### 验证方法
+1. **新项目测试**:
+   - 启动开发服务器: `npm run dev`
+   - 创建新项目
+   - 检查数据库: `project.defaultModelConfigId` 应有值
+   - 测试GA生成功能: 应正常工作,无"No active model"错误
+
+2. **现有项目测试**:
+   - 使用bug修复前创建的项目
+   - 测试GA生成功能
+   - 应通过fallback逻辑正常工作
+   - 检查日志: 应看到"attempting fallback"警告
+
+3. **数据库验证**:
+   - Prisma Studio: `npm run db:studio`
+   - 检查Project表: `defaultModelConfigId`字段
+   - 检查ModelConfig表: 对应的模型配置存在且`status=1`
+
+#### 验收标准
+- [x] 两个API路由都设置`defaultModelConfigId`
+- [x] fallback逻辑添加完成
+- [x] 数据修复脚本创建完成
+- [x] 开发服务器启动成功
+- [ ] 新项目GA生成测试通过 ⚠️ (需浏览器UI测试)
+- [ ] 现有项目GA生成测试通过 ⚠️ (需浏览器UI测试)
+
+---
+
+### 技术要点
+
+#### 1. 为什么不直接在createProject中设置?
+- `createProject()`是数据库层函数,只负责基础字段
+- `ModelConfig`在业务层根据不同场景创建(复用/新建/员工API)
+- 需要在业务层完成模型创建后才能获取正确的ID
+- 保持了数据库层和业务层的职责分离
+
+#### 2. 为什么两个路径都要修复?
+- **配置复用路径**: 用户选择从已有项目复制模型配置
+- **新建配置路径**: 用户创建全新项目,使用默认配置
+- 两条路径都会创建ModelConfig,都需要设置defaultModelConfigId
+
+#### 3. fallback逻辑的必要性?
+- 主要修复已经解决新项目问题
+- fallback是为了:
+  1. 兼容bug修复前创建的旧项目
+  2. 防御未来可能的数据不一致问题
+  3. 提供更好的降级体验
+
+---
+
+### 相关Issue追踪
+
+**问题发现时间**: 2025-11-07
+**问题发现人**: 用户
+**修复完成时间**: 2025-11-07
+**修复人**: Claude AI
+
+**问题描述**: 批量生成GA对功能报错"No active model available for GA generation"
+
+**影响功能**:
+- ✅ GA对生成 (Genre-Audience pair generation)
+- ⚠️ 可能影响所有依赖`getActiveModel()`的功能
+
+**关联批次**: 批次3.5的项目创建默认模型配置功能
+
+---
+
+## 📊 变更统计 (更新)
+
+### 文件变更统计 (批次5新增)
+| 变更类型 | 文件数 | 文件列表 |
+|---------|--------|---------|
+| 修改文件 | 3 | `app/api/projects/route.js`, `app/api/projects/employee/[employeeId]/route.js`, `lib/services/models.js` |
+| 新增文件 | 1 | `scripts/fix-default-model.js` |
+| **批次5合计** | **4** | - |
+| **总计(批次1-5)** | **24** | - |
+
+### 代码隔离策略使用统计 (更新)
+| 策略 | 使用次数 | 批次5新增 |
+|------|---------|-----------|
+| 策略1: 独立文件 | 6 | +1 (fix-default-model.js) |
+| 策略2: 配置扩展 | 6 | - |
+| 策略3: 组件包装 | 0 | - |
+| 策略4: 条件渲染 | 4 | - |
+| 策略5: 标记修改 | 14 | +3 (projects/route.js, employee API, models.js) |
+
+---
+
+## 📝 维护指南 (更新)
+
+### Bug修复流程示例 (批次5案例)
+
+1. **问题报告**: 用户发现GA生成报错
+2. **问题分析**:
+   - 检查错误日志
+   - 追踪`getActiveModel()`调用链
+   - 发现`defaultModelConfigId`为null
+3. **根因定位**: 批次3.5创建ModelConfig但未设置项目关联
+4. **修复策略**:
+   - 主要修复: 在两个创建路径设置`defaultModelConfigId`
+   - 防御性修复: 添加fallback逻辑兼容旧数据
+   - 工具脚本: 提供数据修复选项
+5. **测试验证**: 开发服务器测试 + UI测试
+6. **文档更新**: 在CUSTOM_CHANGES.md记录完整分析和修复过程
+
+---
+
+## 📅 变更日志 (更新)
+
+| 日期 | 批次 | 变更内容 | 负责人 |
+|------|------|---------|--------|
+| ... | ... | ... | ... |
+| 2025-11-07 | 批次4 | 迁移品牌定制功能(Logo/名称/UI开关) | Claude AI |
+| 2025-11-07 | 批次4 | 迁移国际化翻译 | Claude AI |
+| 2025-11-07 | 批次5 | 修复GA生成"No active model"错误 | Claude AI |
+| 2025-11-07 | 批次5 | 修复projects/route.js设置defaultModelConfigId | Claude AI |
+| 2025-11-07 | 批次5 | 修复employee API设置defaultModelConfigId | Claude AI |
+| 2025-11-07 | 批次5 | 添加getActiveModel() fallback逻辑 | Claude AI |
+| 2025-11-07 | 批次5 | 创建数据修复脚本fix-default-model.js | Claude AI |
+
+---
+
+**文档版本**: v1.1
 **最后更新人**: Claude AI
-**最后更新时间**: 2025-11-06
+**最后更新时间**: 2025-11-07
