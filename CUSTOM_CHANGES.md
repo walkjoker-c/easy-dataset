@@ -14,9 +14,9 @@
 | 批次2 | 简单功能迁移 | P0 | ✅ 已完成 | 2 | 2025-11-06 |
 | 批次3 | 中等功能迁移 | P0 | ✅ 已完成 | 5 | 2025-11-06 |
 | 批次3.5 | 智能跳转+Bug修复 | P0 | ✅ 已完成 | 5 | 2025-11-06 |
-| 批次4 | 品牌定制 | P1 | ⏳ 待开始 | - | - |
+| 批次4 | 品牌定制 | P1 | ✅ 已完成 | 6 | 2025-11-07 |
 
-**整体进度**: 批次3.5已完成 (4/5 批次, 80%)
+**整体进度**: 批次4已完成 (5/5 批次, 100%)
 
 ---
 
@@ -676,30 +676,105 @@ message: '保存成功', // CUSTOM: 直接使用中文避免国际化问题 (批
 
 ## 🎯 批次4: 品牌定制 (P1)
 
-### 状态: ⏳ 待开始
+### 状态: ✅ 已完成
 
-### 计划变更内容
+### 实际变更内容
 
-#### 1. 品牌Logo (P1)
-- **文件路径**: `public/logo.png`, `public/logo.svg`, `public/favicon.ico`
-- **变更类型**: 资源文件替换
+#### 1. 复制品牌Logo文件 (P1)
+- **文件路径**: `public/imgs/夸夸logo-03.png`, `public/imgs/夸夸logo-05.png`
+- **变更类型**: 新增资源文件
 - **代码隔离策略**: 独立文件(策略1)
+- **功能说明**: 从1.4.0复制定制Logo到1.6.0
+- **文件信息**:
+  - `夸夸logo-03.png`: 154KB
+  - `夸夸logo-05.png`: 446KB
+- **说明**: 标准logo文件(logo.png/svg/ico)在1.6.0中已存在且与1.4.0完全相同(MD5一致),无需复制
 
-#### 2. 品牌名称 (P1)
-- **文件路径**: `components/common/Navbar.js`
-- **变更类型**: 条件渲染
-- **代码隔离策略**: 条件渲染(策略4)
-- **实现方式**: 从环境变量读取品牌名称
+#### 2. Navbar品牌定制 (P1)
+- **文件路径**: `components/Navbar.js`
+- **变更类型**: 条件渲染 + 标记修改
+- **代码隔离策略**: 条件渲染(策略4) + 标记修改(策略5)
+- **变更位置1**: Logo和品牌名称 (第172-213行)
+  ```javascript
+  {/* CUSTOM: 禁用品牌Logo/名称点击跳转 (批次4定制增强) */}
+  {/* 理由: 后续一个项目对应一个用户,主界面是管理员界面,普通用户不能跳转 */}
+  <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+    {/* CUSTOM: 自定义Logo和品牌名称 (迁移自1.4.0) */}
+    <Box component="img"
+      src={process.env.NEXT_PUBLIC_BRAND_LOGO || "/imgs/夸夸logo-05.png"}
+      alt={process.env.NEXT_PUBLIC_BRAND_NAME || "夸夸Logo"}
+    />
+    {/* CUSTOM: 使用国际化品牌名称 (迁移自1.4.0) */}
+    {t('app.title')}
+  </Box>
+  ```
+  **关键改动**:
+  - ❌ 注释掉 `onClick={() => { window.location.href = '/'; }}`
+  - ❌ 注释掉 `cursor: 'pointer'` 和 `'&:hover': { opacity: 0.9 }` 样式
+  - ✅ Logo/品牌名称不再可点击,无法跳转到主管理界面
+  - 🔒 **安全增强**: 普通用户无法通过点击Logo访问管理员项目列表页面
 
-#### 3. 环境变量规范化 (P1)
-- **文件路径**: `.env`, `.env.example`
+- **变更位置2**: 项目切换器条件显示 (第216行)
+  ```javascript
+  {/* CUSTOM: 项目切换器可通过环境变量控制显示/隐藏 (迁移自1.4.0) */}
+  {isProjectDetail && process.env.NEXT_PUBLIC_ENABLE_PROJECT_SWITCHER !== 'false' && ( ... )}
+  ```
+- **变更位置3**: 文档链接条件显示 (第543行)
+  ```javascript
+  {/* CUSTOM: 文档链接可通过环境变量控制显示/隐藏 (迁移自1.4.0) */}
+  {process.env.NEXT_PUBLIC_ENABLE_DOCS_LINK !== 'false' && ( ... )}
+  ```
+- **变更位置4**: GitHub链接条件显示 (第570行)
+  ```javascript
+  {/* CUSTOM: GitHub链接可通过环境变量控制显示/隐藏 (迁移自1.4.0) */}
+  {process.env.NEXT_PUBLIC_ENABLE_GITHUB_LINK !== 'false' && ( ... )}
+  ```
+- **业务场景**:
+  - 使用自定义Logo和品牌名称
+  - 禁止普通用户点击Logo跳转到管理界面(单用户单项目隔离)
+  - 可选隐藏项目切换器(单项目模式)
+  - 可选隐藏文档和GitHub链接(内部部署)
+
+#### 3. 环境变量扩展 (P1)
+- **文件路径**: `.env.example`, `.env`
 - **变更类型**: 配置扩展
-- **新增配置**: `BRAND_NAME`, `BRAND_LOGO_PATH`
+- **代码隔离策略**: 配置扩展(策略2)
+- **新增配置项**:
+  ```env
+  # CUSTOM: 品牌定制配置 (迁移自1.4.0)
+  NEXT_PUBLIC_BRAND_NAME="夸夸"
+  NEXT_PUBLIC_BRAND_LOGO="/imgs/夸夸logo-05.png"
 
-#### 4. 国际化合并 (P1)
-- **文件路径**: `locales/zh/translation.json`, `locales/en/translation.json`
+  # UI feature toggles
+  NEXT_PUBLIC_ENABLE_PROJECT_SWITCHER="false"
+  NEXT_PUBLIC_ENABLE_DOCS_LINK="false"
+  NEXT_PUBLIC_ENABLE_GITHUB_LINK="false"
+  ```
+- **功能说明**: 所有`NEXT_PUBLIC_*`变量在客户端可访问,支持品牌定制和UI功能开关
+
+#### 4. 国际化翻译合并 (P1)
+- **文件路径**: `locales/zh-CN/translation.json`, `locales/en/translation.json`
 - **变更类型**: 配置合并
-- **策略**: 手动合并1.4.0的翻译条目到1.6.0
+- **代码隔离策略**: 配置扩展(策略2)
+- **新增翻译键**:
+  ```json
+  // 中文 (locales/zh-CN/translation.json)
+  "app": {
+    "title": "训练数据管理平台"
+  }
+
+  // 英文 (locales/en/translation.json)
+  "app": {
+    "title": "Training Data Management Platform"
+  }
+  ```
+- **使用场景**: Navbar品牌名称,支持国际化切换
+- **代码引用**: `components/Navbar.js:207` → `{t('app.title')}`
+- **特殊说明**:
+  - ⚠️ **JSON格式限制**: 翻译文件不支持注释,无法添加 `// CUSTOM:` 标记
+  - ✅ **识别方式**: 这些是**自定义新增的翻译键**,不在官方1.6.0中
+  - ✅ **追踪方式**: 通过本文档CUSTOM_CHANGES.md记录所有自定义翻译键
+  - 📋 **验证方法**: 对比官方1.6.0翻译文件,`"app.title"` 键不存在于官方版本
 
 ---
 
@@ -708,19 +783,18 @@ message: '保存成功', // CUSTOM: 直接使用中文避免国际化问题 (批
 ### 文件变更统计
 | 变更类型 | 文件数 | 说明 |
 |---------|--------|------|
-| 新增文件 | 2 | `.env.example`, `employee/[employeeId]/route.js` |
-| 修改文件 | 10 | `.env`, `constant/model.js`, `DatasetMetadata.js`, `useDatasetDetails.js`, `datasets/[datasetId]/page.js`, `projects/route.js`, `datasets/route.js`, `CreateProjectDialog.js`, `employee/[employeeId]/route.js`, `ModelSettings.js` |
-| 待修改 | 2+ | 品牌定制相关文件 (批次4) |
-| **合计** | **12+** | - |
+| 新增文件 | 5 | `.env.example`, `employee/[employeeId]/route.js`, `CUSTOM_CHANGES.md`, `夸夸logo-03.png`, `夸夸logo-05.png` |
+| 修改文件 | 15 | `.env`, `.env.example`, `constant/model.js`, `DatasetMetadata.js`, `useDatasetDetails.js`, `datasets/[datasetId]/page.js`, `projects/route.js`, `datasets/route.js`, `CreateProjectDialog.js`, `employee/[employeeId]/route.js`, `ModelSettings.js`, `Navbar.js`, `zh-CN/translation.json`, `en/translation.json` |
+| **合计** | **20** | 所有批次1-4完成 |
 
 ### 代码隔离策略使用统计
 | 策略 | 使用次数 | 应用场景 |
 |------|---------|---------|
-| 策略1: 独立文件 | 2 | `.env.example`, 员工API |
-| 策略2: 配置扩展 | 2 | `.env`, 环境变量 |
+| 策略1: 独立文件 | 5 | `.env.example`, 员工API, CUSTOM_CHANGES.md, Logo文件×2 |
+| 策略2: 配置扩展 | 6 | `.env`, `.env.example`(品牌), 翻译文件×2 |
 | 策略3: 组件包装 | 0 | 原计划标签编辑,实际改用策略5 |
-| 策略4: 条件渲染 | 0 (计划1) | 品牌名称(批次4) |
-| 策略5: 标记修改 | 10 | `constant/model.js`, `DatasetMetadata.js`, `useDatasetDetails.js`, `page.js`, `projects/route.js`, `datasets/route.js`, `CreateProjectDialog.js`, `employee API`, `ModelSettings.js`, `useDatasetDetails.js国际化` |
+| 策略4: 条件渲染 | 4 | Navbar品牌定制(Logo/名称/切换器/链接) |
+| 策略5: 标记修改 | 11 | `constant/model.js`, `DatasetMetadata.js`, `useDatasetDetails.js`, `page.js`, `projects/route.js`, `datasets/route.js`, `CreateProjectDialog.js`, `employee API`, `ModelSettings.js`, `useDatasetDetails.js国际化`, `Navbar.js` |
 
 ---
 
@@ -742,6 +816,24 @@ message: '保存成功', // CUSTOM: 直接使用中文避免国际化问题 (批
   ...
 }
 ```
+
+### JSON配置文件的特殊处理
+
+**问题**: JSON格式(如 `.env`, `translation.json`)不支持注释,无法直接添加 `// CUSTOM:` 标记
+
+**解决方案**:
+1. **翻译文件** (`locales/**/translation.json`):
+   - ✅ 在本文档 CUSTOM_CHANGES.md 中明确记录所有自定义翻译键
+   - ✅ 新增的顶级键(如 `"app"`)和嵌套键(如 `"app.title"`)都会记录
+   - 📋 后续升级时,对比官方翻译文件识别自定义部分
+
+2. **环境变量文件** (`.env`, `.env.example`):
+   - ✅ 使用行注释 `# CUSTOM: 说明` 标记自定义配置块
+   - ✅ 自定义变量使用统一前缀(如 `OPENAI_CUSTOM_*`, `NEXT_PUBLIC_BRAND_*`)
+
+3. **其他JSON配置** (`package.json`等):
+   - ✅ 在本文档中记录所有修改项
+   - ✅ 使用版本控制工具对比官方版本识别差异
 
 ---
 
@@ -786,9 +878,15 @@ message: '保存成功', // CUSTOM: 直接使用中文避免国际化问题 (批
 **测试总结**: 批次3核心功能完成并通过用户UI测试,发现的2个bug已修复,新增智能跳转特性。
 
 ### 批次4功能测试 (待执行)
-- [ ] 品牌Logo显示
-- [ ] 品牌名称显示
-- [ ] 国际化翻译正确
+- [ ] **品牌定制测试**
+  - [ ] Logo正确显示为"夸夸logo-05.png" ⚠️ (需浏览器测试)
+  - [ ] 品牌名称显示为"夸夸" ⚠️ (需浏览器测试)
+  - [ ] 项目切换器已隐藏 ⚠️ (NEXT_PUBLIC_ENABLE_PROJECT_SWITCHER="false")
+  - [ ] 文档链接已隐藏 ⚠️ (NEXT_PUBLIC_ENABLE_DOCS_LINK="false")
+  - [ ] GitHub链接已隐藏 ⚠️ (NEXT_PUBLIC_ENABLE_GITHUB_LINK="false")
+  - [ ] 切换语言时品牌名称正确显示 ⚠️ (中文:"训练数据管理平台", 英文:"Training Data Management Platform")
+
+**测试说明**: 批次4所有代码迁移完成,编译无错误。完整UI测试需要在浏览器中手动验证。
 
 ---
 
@@ -802,17 +900,20 @@ message: '保存成功', // CUSTOM: 直接使用中文避免国际化问题 (批
    - 对于"标记修改"(策略5): 需手动合并,搜索 `// CUSTOM:` 标记
    - 对于"配置扩展"(策略2): 合并环境变量配置
    - 对于"组件包装"(策略3): 检查被包装组件API是否变化
+   - **翻译文件特别注意**: 对比本文档第4项,合并自定义翻译键 `"app.title"` 到新版翻译文件
 
 2. **添加新定制功能时**:
    - 优先使用"独立文件"策略
-   - 必须添加 `// CUSTOM:` 标记
+   - 必须添加 `// CUSTOM:` 标记(代码文件)
+   - JSON配置文件的自定义项必须在本文档中记录
    - 更新本文档对应章节
    - 更新测试清单
 
 3. **代码审查要点**:
-   - 所有定制代码必须有 `CUSTOM` 标记
+   - 所有定制代码必须有 `CUSTOM` 标记或在本文档中明确记录
    - 修改官方文件需要充分理由
    - 优先使用包装器而非直接修改
+   - 翻译文件新增键必须在"批次4:国际化翻译合并"章节记录
 
 ---
 

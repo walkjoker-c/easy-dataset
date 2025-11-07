@@ -1,4 +1,7 @@
 {
+  "app": {
+    "title": "Training Data Management Platform"
+  },
   "language": {
     "switchToEnglish": "Switch to English",
     "switchToChinese": "Switch to Chinese",

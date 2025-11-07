@@ -4,11 +4,12 @@ import I18nProvider from '@/components/I18nProvider';
 import { Toaster } from 'sonner';
 import { Provider } from 'jotai';
 
+// CUSTOM: 自定义品牌元数据 (迁移自1.4.0)
 export const metadata = {
-  title: 'Easy Dataset',
+  title: '训练数据管理平台',
   description: '一个强大的 LLM 数据集生成工具',
   icons: {
-    icon: '/imgs/logo.ico' // 更新为正确的文件名
+    icon: '/imgs/kuakua.ico' // CUSTOM: 使用自定义favicon (迁移自1.4.0)
   }
 };
 

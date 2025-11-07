@@ -1,4 +1,7 @@
 {
+  "app": {
+    "title": "训练数据管理平台"
+  },
   "language": {
     "switchToEnglish": "切换到英文",
     "switchToChinese": "切换到中文",
