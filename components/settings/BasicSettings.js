@@ -10,7 +10,12 @@ export default function BasicSettings({ projectId }) {
   const [projectInfo, setProjectInfo] = useState({
     id: '',
     name: '',
-    description: ''
+    description: '',
+    // ========== CUSTOM START ==========
+    // 修改日期: 2025-11-08 | 需求: REQ-002
+    // 变更说明: 添加externalId字段用于展示外部系统ID
+    externalId: ''
+    // ========== CUSTOM END ==========
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -98,6 +103,21 @@ export default function BasicSettings({ projectId }) {
               helperText={t('settings.idNotEditable')}
             />
           </Grid>
+          {/* ========== CUSTOM START ========== */}
+          {/* 修改日期: 2025-11-08 | 需求: REQ-002 */}
+          {/* 变更说明: 条件渲染externalId字段,只在存在时显示 */}
+          {projectInfo.externalId && (
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="外部系统ID (External ID)"
+                value={projectInfo.externalId}
+                disabled
+                helperText="此项目由外部系统创建,该ID用于关联外部系统 (只读)"
+              />
+            </Grid>
+          )}
+          {/* ========== CUSTOM END ========== */}
           <Grid item xs={12}>
             <TextField
               fullWidth
