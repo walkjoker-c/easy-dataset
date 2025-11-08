@@ -12,6 +12,14 @@ model Projects {
   id                   String                 @id @default(nanoid(12))
   name                 String
   description          String
+
+  // ========== CUSTOM START ==========
+  // 定制说明: 为员工API映射功能添加外部系统ID字段
+  // 修改日期: 2025-11-08 | 需求: REQ-002
+  // 用途: 通过externalId映射外部系统(如employeeId)到项目,释放name为展示用途
+  externalId           String?                @unique
+  // ========== CUSTOM END ==========
+
   globalPrompt         String                 @default("")
   questionPrompt       String                 @default("")
   answerPrompt         String                 @default("")

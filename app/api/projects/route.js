@@ -12,10 +12,19 @@ export async function POST(request) {
       return Response.json({ error: '项目名称不能为空' }, { status: 400 });
     }
 
-    // 验证项目名称是否已存在
-    if (await isExistByName(projectData.name)) {
-      return Response.json({ error: '项目名称已存在' }, { status: 400 });
-    }
+    // ========== CUSTOM START ==========
+    // 修改日期: 2025-11-08 | 需求: REQ-002
+    // 变更说明: 移除name唯一性检查,允许不同项目使用相同名称
+    // 原因: name字段职责变更为展示用途,不再用于映射外部系统
+    //       外部系统映射改用externalId字段,因此name可以重复
+
+    // 旧逻辑 (已删除):
+    // if (await isExistByName(projectData.name)) {
+    //   return Response.json({ error: '项目名称已存在' }, { status: 400 });
+    // }
+
+    // 新逻辑: 不再检查name重复
+    // ========== CUSTOM END ==========
     // 创建项目
     const newProject = await createProject(projectData);
     // 如果指定了要复用的项目配置
