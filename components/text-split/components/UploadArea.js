@@ -16,6 +16,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { alpha } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import React, { useRef, useState } from 'react';
+// CUSTOM: REQ-003 - 添加OBS文件上传支持
+import UploadSourceSelectDialog from '@/components/custom/obs/UploadSourceSelectDialog';
 
 export default function UploadArea({
   theme,
@@ -30,6 +32,11 @@ export default function UploadArea({
   const { t } = useTranslation();
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef(null);
+
+  // CUSTOM: REQ-003 - 添加上传源选择对话框状态
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
+  // CUSTOM: REQ-003 - TODO: 添加OBS文件浏览器对话框状态(TASK-003实现)
+  // const [obsBrowserOpen, setObsBrowserOpen] = useState(false);
 
   // 拖拽进入
   const handleDragOver = e => {
@@ -55,6 +62,27 @@ export default function UploadArea({
       const event = { target: { files } };
       onFileSelect(event);
     }
+  };
+
+  // CUSTOM: REQ-003 - 点击选择文件按钮,弹出上传源选择对话框
+  const handleSelectButtonClick = () => {
+    setSourceDialogOpen(true);
+  };
+
+  // CUSTOM: REQ-003 - 选择本地文件
+  const handleSelectLocal = () => {
+    setSourceDialogOpen(false);
+    // 触发原有的文件选择器
+    inputRef.current?.click();
+  };
+
+  // CUSTOM: REQ-003 - 选择OBS文件
+  const handleSelectOBS = () => {
+    setSourceDialogOpen(false);
+    // TODO: TASK-003 - 打开OBS文件浏览器
+    // setObsBrowserOpen(true);
+    console.log('[UploadArea] OBS文件选择功能将在TASK-003实现');
+    alert('OBS文件浏览器功能将在TASK-003实现');
   };
 
   return (
@@ -128,23 +156,27 @@ export default function UploadArea({
         title={!selectedModel?.id ? t('textSplit.selectModelFirst', { defaultValue: '请先在右上角选择模型' }) : ''}
       >
         <span>
+          {/* CUSTOM: REQ-003 - 修改按钮点击行为,弹出上传源选择对话框 */}
           <Button
-            component="label"
             variant="contained"
             startIcon={<UploadFileIcon />}
             sx={{ mb: 2, mt: 2 }}
             disabled={!selectedModel?.id || uploading}
+            onClick={handleSelectButtonClick}
           >
             {t('textSplit.selectFile')}
-            <input
-              type="file"
-              hidden
-              accept=".md,.txt,.docx,.pdf,.epub"
-              multiple
-              onChange={onFileSelect}
-              disabled={!selectedModel?.id || uploading}
-            />
           </Button>
+
+          {/* CUSTOM: REQ-003 - 保留原有的hidden input用于本地文件选择 */}
+          <input
+            ref={inputRef}
+            type="file"
+            hidden
+            accept=".md,.txt,.docx,.pdf,.epub"
+            multiple
+            onChange={onFileSelect}
+            disabled={!selectedModel?.id || uploading}
+          />
         </span>
       </Tooltip>
 
@@ -202,6 +234,21 @@ export default function UploadArea({
           </Box>
         </Box>
       )}
+
+      {/* CUSTOM: REQ-003 - 添加上传源选择对话框 */}
+      <UploadSourceSelectDialog
+        open={sourceDialogOpen}
+        onClose={() => setSourceDialogOpen(false)}
+        onSelectLocal={handleSelectLocal}
+        onSelectOBS={handleSelectOBS}
+      />
+
+      {/* CUSTOM: REQ-003 - TODO: TASK-003 - OBS文件浏览器对话框 */}
+      {/* <OBSBrowserDialog
+        open={obsBrowserOpen}
+        onClose={() => setObsBrowserOpen(false)}
+        onConfirm={handleOBSFilesImport}
+      /> */}
     </Box>
   );
 }
