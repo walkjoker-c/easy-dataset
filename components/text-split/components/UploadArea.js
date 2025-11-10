@@ -20,6 +20,9 @@ import React, { useRef, useState } from 'react';
 import UploadSourceSelectDialog from '@/components/custom/obs/UploadSourceSelectDialog';
 // CUSTOM: REQ-003 - TASK-003 - 添加OBS文件浏览器
 import OBSBrowserDialog from '@/components/custom/obs/OBSBrowserDialog';
+// CUSTOM: REQ-003 - TASK-004 - 添加OBS文件下载功能
+import { downloadAndConvertFiles } from '@/lib/custom/obs/file-import';
+import { toast } from 'sonner';
 
 export default function UploadArea({
   theme,
@@ -87,13 +90,67 @@ export default function UploadArea({
     setObsBrowserOpen(true);
   };
 
-  // CUSTOM: REQ-003 - TASK-003 - 处理OBS文件选择确认
-  const handleOBSFilesConfirm = (obsData) => {
+  // CUSTOM: REQ-003 - TASK-003 - 添加下载状态
+  const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
+
+  // CUSTOM: REQ-003 - TASK-004 - 处理OBS文件下载和导入
+  const handleOBSFilesConfirm = async (obsData) => {
     console.log('[UploadArea] 用户从OBS选择了文件:', obsData);
 
-    // TODO: TASK-004 - 实现文件下载和导入逻辑
-    // 目前只是显示提示
-    alert(`已选择 ${obsData.files.length} 个OBS文件\n环境: ${obsData.env}\nAgentType: ${obsData.agentType}\n\n文件下载功能将在TASK-004实现`);
+    const { files: selectedFiles } = obsData;
+
+    if (!selectedFiles || selectedFiles.length === 0) {
+      return;
+    }
+
+    setDownloading(true);
+    setDownloadProgress({ current: 0, total: selectedFiles.length });
+
+    try {
+      toast.info(t('textSplit.obsDownloadStarted', {
+        defaultValue: `开始下载 ${selectedFiles.length} 个文件...`,
+        count: selectedFiles.length
+      }));
+
+      // 批量下载并转换为File对象
+      const result = await downloadAndConvertFiles(selectedFiles, (current, total) => {
+        setDownloadProgress({ current, total });
+      });
+
+      if (result.failures.length > 0) {
+        toast.error(t('textSplit.obsDownloadPartialFailed', {
+          defaultValue: `${result.failures.length} 个文件下载失败`,
+          count: result.failures.length
+        }));
+        console.error('[UploadArea] 下载失败的文件:', result.failures);
+      }
+
+      if (result.successes.length > 0) {
+        // 模拟文件选择事件,将File对象传递给现有的处理流程
+        const event = {
+          target: {
+            files: result.files
+          }
+        };
+
+        onFileSelect(event);
+
+        toast.success(t('textSplit.obsDownloadSuccess', {
+          defaultValue: `成功导入 ${result.successes.length} 个文件`,
+          count: result.successes.length
+        }));
+      }
+    } catch (error) {
+      console.error('[UploadArea] OBS文件下载失败:', error);
+      toast.error(t('textSplit.obsDownloadFailed', {
+        defaultValue: '文件下载失败',
+        error: error.message
+      }));
+    } finally {
+      setDownloading(false);
+      setDownloadProgress({ current: 0, total: 0 });
+    }
   };
 
   return (
@@ -261,6 +318,36 @@ export default function UploadArea({
         project={project}
         onConfirm={handleOBSFilesConfirm}
       />
+
+      {/* CUSTOM: REQ-003 - TASK-004 - 下载进度提示 */}
+      {downloading && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+            px: 3,
+            py: 2,
+            borderRadius: 2,
+            boxShadow: 3,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            zIndex: 1300,
+          }}
+        >
+          <CircularProgress size={24} color="inherit" />
+          <Typography variant="body2">
+            {t('textSplit.obsDownloading', {
+              defaultValue: `正在下载文件: ${downloadProgress.current}/${downloadProgress.total}`,
+              current: downloadProgress.current,
+              total: downloadProgress.total
+            })}
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }
