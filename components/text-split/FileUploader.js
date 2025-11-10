@@ -62,8 +62,11 @@ export default function FileUploader({
       try {
         const response = await fetch(`/api/projects/${projectId}`);
         const data = await response.json();
-        if (data.project) {
-          setProject(data.project);
+        // 修复: API 直接返回 project 对象，不是 { project: {...} }
+        if (data && data.id) {
+          console.log('[FileUploader] 成功获取项目信息:', data);
+          console.log('[FileUploader] project.externalId:', data.externalId);
+          setProject(data);
         }
       } catch (error) {
         console.error('[FileUploader] 获取项目信息失败:', error);

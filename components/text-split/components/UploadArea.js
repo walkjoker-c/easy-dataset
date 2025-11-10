@@ -38,6 +38,10 @@ export default function UploadArea({
 }) {
   const { t } = useTranslation();
   const [dragActive, setDragActive] = useState(false);
+
+  // 调试日志
+  console.log('[UploadArea] Rendered with project:', project);
+  console.log('[UploadArea] project?.externalId:', project?.externalId);
   const inputRef = useRef(null);
 
   // CUSTOM: REQ-003 - 添加上传源选择对话框状态

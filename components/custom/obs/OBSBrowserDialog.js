@@ -37,6 +37,10 @@ import OBSFileList from './OBSFileList';
 export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) {
   const { t } = useTranslation();
 
+  // 调试日志
+  console.log('[OBSBrowserDialog] Rendered with project:', project);
+  console.log('[OBSBrowserDialog] project.externalId:', project?.externalId);
+
   // 状态管理
   const [env, setEnv] = useState('test'); // dev/test/prod
   const [agentType, setAgentType] = useState(project?.externalId || '');
@@ -184,16 +188,20 @@ export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) 
         {/* 路径配置区域 */}
         <Box sx={{ mb: 3 }}>
           {project?.externalId ? (
-            // 有externalId: 只显示agentType（自动从所有环境拉取）
-            <Box>
-              <TextField
-                fullWidth
-                label={t('obsUpload.agentType', { defaultValue: 'AgentType' })}
-                value={agentType}
-                disabled
-                helperText={t('obsUpload.autoFromAllEnvs', { defaultValue: '自动从项目获取，将从所有环境(dev/test/prod)拉取数据' })}
-              />
-            </Box>
+            // ========== CUSTOM START ==========
+            // 定制说明: REQ-003 - 有externalId时自动从三个环境拉取
+            // 修改日期: 2025-11-11 | 修改人: Claude Code
+            // 有externalId: 自动使用externalId作为agentType，从dev/test/prod三个环境拉取文件
+            // TODO: 后续优化 - 创建项目时传入环境信息，避免三环境拉取
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                <strong>AgentType:</strong> {agentType}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                自动从项目中获取
+              </Typography>
+            </Alert>
+            // ========== CUSTOM END ==========
           ) : (
             // 无externalId: 显示环境选择和手动输入
             <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
@@ -232,8 +240,8 @@ export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) 
             </Box>
           )}
 
-          {/* 显示当前路径 */}
-          {agentType && (
+          {/* 显示当前路径 - 仅在无externalId时显示单一路径 */}
+          {agentType && !project?.externalId && (
             <Box sx={{ mt: 2, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
               <Typography variant="caption" color="text.secondary">
                 {t('obsUpload.currentPath', { defaultValue: '当前路径' })}: {buildPath()}
