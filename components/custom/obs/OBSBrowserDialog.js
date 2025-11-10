@@ -54,8 +54,7 @@ export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) 
 
   // 获取文件列表
   const fetchFiles = async () => {
-    const prefix = buildPath();
-    if (!prefix) {
+    if (!agentType) {
       setError(t('obsUpload.pleaseInputAgentType', { defaultValue: '请输入AgentType' }));
       return;
     }
@@ -65,21 +64,66 @@ export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) 
     setSelectedFiles([]); // 清空选择
 
     try {
-      console.log(`[OBSBrowser] 获取文件列表: ${prefix}`);
+      // 如果有externalId，从三个环境都拉取
+      if (project?.externalId) {
+        console.log(`[OBSBrowser] 从所有环境获取文件列表`);
 
-      const response = await fetch('/api/obs/list', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prefix }),
-      });
+        const envs = ['dev', 'test', 'prod'];
+        const allFiles = [];
 
-      const data = await response.json();
+        for (const envName of envs) {
+          const prefix = `env=${envName}/messageType=conversation_data/agentType=${agentType}/${currentFolder}/`;
+          console.log(`[OBSBrowser] 获取文件列表: ${prefix}`);
 
-      if (data.success) {
-        setFiles(data.files);
-        console.log(`[OBSBrowser] 成功获取 ${data.files.length} 个文件`);
+          try {
+            const response = await fetch('/api/obs/list', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prefix }),
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.files.length > 0) {
+              // 为每个文件添加环境标记
+              const filesWithEnv = data.files.map(file => ({
+                ...file,
+                env: envName,
+              }));
+              allFiles.push(...filesWithEnv);
+              console.log(`[OBSBrowser] 从 ${envName} 环境获取到 ${data.files.length} 个文件`);
+            }
+          } catch (err) {
+            console.warn(`[OBSBrowser] 从 ${envName} 环境获取文件失败:`, err);
+            // 继续获取下一个环境
+          }
+        }
+
+        setFiles(allFiles);
+        console.log(`[OBSBrowser] 总共获取 ${allFiles.length} 个文件`);
+
+        if (allFiles.length === 0) {
+          setError(t('obsUpload.noFilesFound', { defaultValue: '未找到任何文件' }));
+        }
       } else {
-        setError(data.error || t('obsUpload.fetchFailed', { defaultValue: '获取文件列表失败' }));
+        // 无externalId，只从选定的环境拉取
+        const prefix = buildPath();
+        console.log(`[OBSBrowser] 获取文件列表: ${prefix}`);
+
+        const response = await fetch('/api/obs/list', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prefix }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          setFiles(data.files);
+          console.log(`[OBSBrowser] 成功获取 ${data.files.length} 个文件`);
+        } else {
+          setError(data.error || t('obsUpload.fetchFailed', { defaultValue: '获取文件列表失败' }));
+        }
       }
     } catch (err) {
       console.error('[OBSBrowser] 获取文件列表失败:', err);
@@ -140,8 +184,19 @@ export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) 
         {/* 路径配置区域 */}
         <Box sx={{ mb: 3 }}>
           {project?.externalId ? (
-            // 有externalId: 显示环境选择
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            // 有externalId: 只显示agentType（自动从所有环境拉取）
+            <Box>
+              <TextField
+                fullWidth
+                label={t('obsUpload.agentType', { defaultValue: 'AgentType' })}
+                value={agentType}
+                disabled
+                helperText={t('obsUpload.autoFromAllEnvs', { defaultValue: '自动从项目获取，将从所有环境(dev/test/prod)拉取数据' })}
+              />
+            </Box>
+          ) : (
+            // 无externalId: 显示环境选择和手动输入
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
               <FormControl fullWidth>
                 <InputLabel>{t('obsUpload.environment', { defaultValue: '环境' })}</InputLabel>
                 <Select value={env} onChange={(e) => setEnv(e.target.value)} label={t('obsUpload.environment')}>
@@ -170,20 +225,11 @@ export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) 
                 fullWidth
                 label={t('obsUpload.agentType', { defaultValue: 'AgentType' })}
                 value={agentType}
-                disabled
-                helperText={t('obsUpload.autoFromProject', { defaultValue: '自动从项目获取' })}
+                onChange={(e) => setAgentType(e.target.value)}
+                placeholder={t('obsUpload.agentTypePlaceholder', { defaultValue: '请输入agentType' })}
+                helperText={t('obsUpload.agentTypeHelp', { defaultValue: '请输入agentType，将构建路径' })}
               />
             </Box>
-          ) : (
-            // 无externalId: 显示手动输入
-            <TextField
-              fullWidth
-              label={t('obsUpload.agentType', { defaultValue: 'AgentType' })}
-              value={agentType}
-              onChange={(e) => setAgentType(e.target.value)}
-              placeholder={t('obsUpload.agentTypePlaceholder', { defaultValue: '请输入agentType' })}
-              helperText={t('obsUpload.agentTypeHelp', { defaultValue: '输入后将构建路径: env=test/messageType=conversation_data/agentType={value}/pending/' })}
-            />
           )}
 
           {/* 显示当前路径 */}
@@ -199,7 +245,7 @@ export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) 
         {/* Pending/Completed切换 */}
         <Tabs
           value={currentFolder}
-          onChange={(e, v) => setCurrentFolder(v)}
+          onChange={(_, v) => setCurrentFolder(v)}
           sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
         >
           <Tab

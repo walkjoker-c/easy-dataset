@@ -198,9 +198,13 @@ export async function POST(request, { params }) {
     }
 
     // 检查文件类型
-    if (!fileName.endsWith('.md') && !fileName.endsWith('.pdf')) {
-      return NextResponse.json({ error: 'Only Markdown files are supported' }, { status: 400 });
+    // ========== CUSTOM START ==========
+    // 定制说明: REQ-003 - TASK-007 - 支持JSONL对话数据文件
+    // 修改日期: 2025-11-11 | 修改人: Claude Code
+    if (!fileName.endsWith('.md') && !fileName.endsWith('.pdf') && !fileName.endsWith('.jsonl')) {
+      return NextResponse.json({ error: 'Only Markdown, PDF, and JSONL files are supported' }, { status: 400 });
     }
+    // ========== CUSTOM END ==========
 
     // 直接从请求体中读取二进制数据
     const fileBuffer = Buffer.from(await request.arrayBuffer());

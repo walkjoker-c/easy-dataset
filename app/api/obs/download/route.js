@@ -28,25 +28,50 @@ async function downloadFileContent(key) {
     });
 
     if (result.CommonMsg.Status < 300) {
-      // 读取流内容到Buffer
-      return new Promise((resolve, reject) => {
-        const chunks = [];
+      const content = result.InterfaceResult.Content;
 
-        result.InterfaceResult.Content.on('data', chunk => {
-          chunks.push(chunk);
-        });
-
-        result.InterfaceResult.Content.on('end', () => {
-          const buffer = Buffer.concat(chunks);
-          console.log(`[OBS Download API] 下载完成: ${key}, 大小: ${buffer.length}`);
-          resolve(buffer);
-        });
-
-        result.InterfaceResult.Content.on('error', error => {
-          console.error(`[OBS Download API] 读取流失败:`, error);
-          reject(new Error(`Failed to read stream: ${error.message}`));
-        });
+      // 调试：输出Content的类型信息
+      console.log(`[OBS Download API] Content类型调试:`, {
+        type: typeof content,
+        isBuffer: Buffer.isBuffer(content),
+        hasOnMethod: content && typeof content.on === 'function',
+        constructor: content?.constructor?.name,
+        keys: content ? Object.keys(content).slice(0, 10) : [],
       });
+
+      // 检查Content是Stream还是Buffer
+      if (Buffer.isBuffer(content)) {
+        // 如果已经是Buffer,直接返回
+        console.log(`[OBS Download API] 下载完成(Buffer): ${key}, 大小: ${content.length}`);
+        return content;
+      } else if (content && typeof content.on === 'function') {
+        // 如果是Stream,读取流内容到Buffer
+        return new Promise((resolve, reject) => {
+          const chunks = [];
+
+          content.on('data', chunk => {
+            chunks.push(chunk);
+          });
+
+          content.on('end', () => {
+            const buffer = Buffer.concat(chunks);
+            console.log(`[OBS Download API] 下载完成(Stream): ${key}, 大小: ${buffer.length}`);
+            resolve(buffer);
+          });
+
+          content.on('error', error => {
+            console.error(`[OBS Download API] 读取流失败:`, error);
+            reject(new Error(`Failed to read stream: ${error.message}`));
+          });
+        });
+      } else if (typeof content === 'string') {
+        // 如果是字符串，转换为Buffer
+        console.log(`[OBS Download API] 下载完成(String): ${key}, 长度: ${content.length}`);
+        return Buffer.from(content, 'utf8');
+      } else {
+        console.error(`[OBS Download API] 未知的Content类型:`, content);
+        throw new Error(`Unexpected Content type from OBS SDK: ${typeof content}`);
+      }
     } else {
       throw new Error(`OBS getObject failed: ${result.CommonMsg.Message}`);
     }

@@ -19,6 +19,7 @@ import {
   Typography,
   Box,
   Divider,
+  Chip,
 } from '@mui/material';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import { useTranslation } from 'react-i18next';
@@ -69,6 +70,26 @@ export default function OBSFileList({ files, selectedFiles, onSelectionChange })
   const getFileName = (key) => {
     const parts = key.split('/');
     return parts[parts.length - 1] || key;
+  };
+
+  // 获取环境标签颜色
+  const getEnvColor = (env) => {
+    switch (env) {
+      case 'dev': return 'info';
+      case 'test': return 'warning';
+      case 'prod': return 'error';
+      default: return 'default';
+    }
+  };
+
+  // 获取环境标签文本
+  const getEnvLabel = (env) => {
+    switch (env) {
+      case 'dev': return 'DEV';
+      case 'test': return 'TEST';
+      case 'prod': return 'PROD';
+      default: return env?.toUpperCase() || '';
+    }
   };
 
   if (files.length === 0) {
@@ -142,9 +163,19 @@ export default function OBSFileList({ files, selectedFiles, onSelectionChange })
                 />
                 <ListItemText
                   primary={
-                    <Typography variant="body1" noWrap>
-                      {getFileName(file.key)}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body1" noWrap sx={{ flex: 1 }}>
+                        {getFileName(file.key)}
+                      </Typography>
+                      {file.env && (
+                        <Chip
+                          label={getEnvLabel(file.env)}
+                          color={getEnvColor(file.env)}
+                          size="small"
+                          sx={{ height: 20, fontSize: '0.7rem' }}
+                        />
+                      )}
+                    </Box>
                   }
                   secondary={
                     <Typography variant="caption" color="text.secondary">
