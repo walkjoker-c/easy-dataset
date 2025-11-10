@@ -98,7 +98,7 @@ export default function UploadArea({
   const handleOBSFilesConfirm = async (obsData) => {
     console.log('[UploadArea] 用户从OBS选择了文件:', obsData);
 
-    const { files: selectedFiles } = obsData;
+    const { files: selectedFiles, env, agentType, folder } = obsData;
 
     if (!selectedFiles || selectedFiles.length === 0) {
       return;
@@ -113,10 +113,15 @@ export default function UploadArea({
         count: selectedFiles.length
       }));
 
+      // CUSTOM: REQ-003 - TASK-005 - 传递OBS元信息用于后续文件移动
       // 批量下载并转换为File对象
-      const result = await downloadAndConvertFiles(selectedFiles, (current, total) => {
-        setDownloadProgress({ current, total });
-      });
+      const result = await downloadAndConvertFiles(
+        selectedFiles,
+        (current, total) => {
+          setDownloadProgress({ current, total });
+        },
+        { env, agentType, folder }
+      );
 
       if (result.failures.length > 0) {
         toast.error(t('textSplit.obsDownloadPartialFailed', {
@@ -140,6 +145,43 @@ export default function UploadArea({
           defaultValue: `成功导入 ${result.successes.length} 个文件`,
           count: result.successes.length
         }));
+
+        // CUSTOM: REQ-003 - TASK-005 - 文件导入成功后,自动移动OBS文件从pending到completed
+        // 过滤出从OBS导入且在pending目录的文件
+        const filesToMove = result.files
+          .filter(file => file._fromOBS && file._obsKey && file._obsFolder === 'pending')
+          .map(file => ({
+            fileName: file.name,
+            obsKey: file._obsKey
+          }));
+
+        if (filesToMove.length > 0) {
+          console.log(`[UploadArea] 准备移动 ${filesToMove.length} 个文件从pending到completed`);
+
+          // 异步调用移动API,不阻塞主流程
+          fetch('/api/obs/move', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: filesToMove })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success && data.summary.succeeded > 0) {
+              console.log(`[UploadArea] 成功移动 ${data.summary.succeeded} 个文件到completed`);
+              toast.info(t('textSplit.obsFileMoved', {
+                defaultValue: `已将 ${data.summary.succeeded} 个文件移动到completed目录`,
+                count: data.summary.succeeded
+              }));
+            }
+            if (data.summary.failed > 0) {
+              console.warn(`[UploadArea] ${data.summary.failed} 个文件移动失败`);
+            }
+          })
+          .catch(error => {
+            console.error('[UploadArea] 移动文件失败:', error);
+            // 移动失败不影响主流程,仅记录日志
+          });
+        }
       }
     } catch (error) {
       console.error('[UploadArea] OBS文件下载失败:', error);
