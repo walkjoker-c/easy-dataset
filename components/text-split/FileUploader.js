@@ -49,10 +49,31 @@ export default function FileUploader({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const [searchFileName, setSearchFileName] = useState('');
+  // CUSTOM: REQ-003 - TASK-003 - 添加project状态
+  const [project, setProject] = useState(null);
 
   useEffect(() => {
     fetchUploadedFiles();
   }, [currentPage, searchFileName]);
+
+  // CUSTOM: REQ-003 - TASK-003 - 获取项目信息(用于OBS路径构建)
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectId}`);
+        const data = await response.json();
+        if (data.project) {
+          setProject(data.project);
+        }
+      } catch (error) {
+        console.error('[FileUploader] 获取项目信息失败:', error);
+      }
+    };
+
+    if (projectId) {
+      fetchProject();
+    }
+  }, [projectId]);
 
   /**
    * 处理 PDF 处理方式选择
@@ -297,6 +318,7 @@ export default function FileUploader({
                 onRemoveFile={removeFile}
                 onUpload={uploadFiles}
                 selectedModel={selectedModelInfo}
+                project={project}
               />
             </Grid>
 

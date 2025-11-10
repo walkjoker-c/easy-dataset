@@ -18,6 +18,8 @@ import { useTranslation } from 'react-i18next';
 import React, { useRef, useState } from 'react';
 // CUSTOM: REQ-003 - 添加OBS文件上传支持
 import UploadSourceSelectDialog from '@/components/custom/obs/UploadSourceSelectDialog';
+// CUSTOM: REQ-003 - TASK-003 - 添加OBS文件浏览器
+import OBSBrowserDialog from '@/components/custom/obs/OBSBrowserDialog';
 
 export default function UploadArea({
   theme,
@@ -27,7 +29,9 @@ export default function UploadArea({
   onFileSelect,
   onRemoveFile,
   onUpload,
-  selectedModel
+  selectedModel,
+  // CUSTOM: REQ-003 - TASK-003 - 添加project参数
+  project
 }) {
   const { t } = useTranslation();
   const [dragActive, setDragActive] = useState(false);
@@ -35,8 +39,8 @@ export default function UploadArea({
 
   // CUSTOM: REQ-003 - 添加上传源选择对话框状态
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
-  // CUSTOM: REQ-003 - TODO: 添加OBS文件浏览器对话框状态(TASK-003实现)
-  // const [obsBrowserOpen, setObsBrowserOpen] = useState(false);
+  // CUSTOM: REQ-003 - TASK-003 - 添加OBS文件浏览器对话框状态
+  const [obsBrowserOpen, setObsBrowserOpen] = useState(false);
 
   // 拖拽进入
   const handleDragOver = e => {
@@ -79,10 +83,17 @@ export default function UploadArea({
   // CUSTOM: REQ-003 - 选择OBS文件
   const handleSelectOBS = () => {
     setSourceDialogOpen(false);
-    // TODO: TASK-003 - 打开OBS文件浏览器
-    // setObsBrowserOpen(true);
-    console.log('[UploadArea] OBS文件选择功能将在TASK-003实现');
-    alert('OBS文件浏览器功能将在TASK-003实现');
+    // CUSTOM: REQ-003 - TASK-003 - 打开OBS文件浏览器
+    setObsBrowserOpen(true);
+  };
+
+  // CUSTOM: REQ-003 - TASK-003 - 处理OBS文件选择确认
+  const handleOBSFilesConfirm = (obsData) => {
+    console.log('[UploadArea] 用户从OBS选择了文件:', obsData);
+
+    // TODO: TASK-004 - 实现文件下载和导入逻辑
+    // 目前只是显示提示
+    alert(`已选择 ${obsData.files.length} 个OBS文件\n环境: ${obsData.env}\nAgentType: ${obsData.agentType}\n\n文件下载功能将在TASK-004实现`);
   };
 
   return (
@@ -243,12 +254,13 @@ export default function UploadArea({
         onSelectOBS={handleSelectOBS}
       />
 
-      {/* CUSTOM: REQ-003 - TODO: TASK-003 - OBS文件浏览器对话框 */}
-      {/* <OBSBrowserDialog
+      {/* CUSTOM: REQ-003 - TASK-003 - OBS文件浏览器对话框 */}
+      <OBSBrowserDialog
         open={obsBrowserOpen}
         onClose={() => setObsBrowserOpen(false)}
-        onConfirm={handleOBSFilesImport}
-      /> */}
+        project={project}
+        onConfirm={handleOBSFilesConfirm}
+      />
     </Box>
   );
 }
