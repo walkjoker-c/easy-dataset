@@ -7,6 +7,9 @@
  * 创建日期: 2025-11-10
  * 所属需求: REQ-003 OBS文件上传集成
  * 所属任务: TASK-003 OBS文件浏览器组件
+ *
+ * 修改历史:
+ * - 2025-11-11: 添加OBS_DEFAULT_ENV环境变量支持（控制默认环境选择行为）
  */
 
 'use client';
@@ -37,12 +40,20 @@ import OBSFileList from './OBSFileList';
 export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) {
   const { t } = useTranslation();
 
+  // CUSTOM: REQ-003 - 2025-11-11 - 添加NEXT_PUBLIC_OBS_DEFAULT_ENV环境变量支持
+  // 从环境变量读取默认环境配置，支持dev/test/prod三个值
+  // 注意: 客户端组件只能访问NEXT_PUBLIC_前缀的环境变量
+  const defaultEnv = process.env.NEXT_PUBLIC_OBS_DEFAULT_ENV || '';
+  const isValidEnv = ['dev', 'test', 'prod'].includes(defaultEnv);
+
   // 调试日志
   console.log('[OBSBrowserDialog] Rendered with project:', project);
   console.log('[OBSBrowserDialog] project.externalId:', project?.externalId);
+  console.log('[OBSBrowserDialog] OBS_DEFAULT_ENV:', defaultEnv, 'isValid:', isValidEnv);
 
   // 状态管理
-  const [env, setEnv] = useState('test'); // dev/test/prod
+  // CUSTOM: REQ-003 - 2025-11-11 - 如果有有效的环境变量配置，使用它作为默认值
+  const [env, setEnv] = useState(isValidEnv ? defaultEnv : 'test'); // dev/test/prod
   const [agentType, setAgentType] = useState(project?.externalId || '');
   const [currentFolder, setCurrentFolder] = useState('pending'); // pending | completed
   const [files, setFiles] = useState([]);
@@ -68,46 +79,81 @@ export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) 
     setSelectedFiles([]); // 清空选择
 
     try {
-      // 如果有externalId，从三个环境都拉取
+      // 如果有externalId，根据环境变量决定拉取策略
       if (project?.externalId) {
-        console.log(`[OBSBrowser] 从所有环境获取文件列表`);
+        // ========== CUSTOM START: REQ-003 - 2025-11-11 ==========
+        // 功能: 支持OBS_DEFAULT_ENV环境变量控制单环境拉取
+        // 如果配置了有效的默认环境，只从该环境拉取
+        if (isValidEnv) {
+          console.log(`[OBSBrowser] 使用环境变量配置，只从 ${defaultEnv} 环境获取文件`);
+          const prefix = `env=${defaultEnv}/messageType=conversation_data/agentType=${agentType}/${currentFolder}/`;
 
-        const envs = ['dev', 'test', 'prod'];
-        const allFiles = [];
+          const response = await fetch('/api/obs/list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prefix }),
+          });
 
-        for (const envName of envs) {
-          const prefix = `env=${envName}/messageType=conversation_data/agentType=${agentType}/${currentFolder}/`;
-          console.log(`[OBSBrowser] 获取文件列表: ${prefix}`);
+          const data = await response.json();
 
-          try {
-            const response = await fetch('/api/obs/list', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ prefix }),
-            });
+          if (data.success) {
+            // 为文件添加环境标记
+            const filesWithEnv = data.files.map(file => ({
+              ...file,
+              env: defaultEnv,
+            }));
+            setFiles(filesWithEnv);
+            console.log(`[OBSBrowser] 从 ${defaultEnv} 环境获取到 ${data.files.length} 个文件`);
 
-            const data = await response.json();
-
-            if (data.success && data.files.length > 0) {
-              // 为每个文件添加环境标记
-              const filesWithEnv = data.files.map(file => ({
-                ...file,
-                env: envName,
-              }));
-              allFiles.push(...filesWithEnv);
-              console.log(`[OBSBrowser] 从 ${envName} 环境获取到 ${data.files.length} 个文件`);
+            if (filesWithEnv.length === 0) {
+              setError(t('obsUpload.noFilesFound', { defaultValue: '未找到任何文件' }));
             }
-          } catch (err) {
-            console.warn(`[OBSBrowser] 从 ${envName} 环境获取文件失败:`, err);
-            // 继续获取下一个环境
+          } else {
+            setError(data.error || t('obsUpload.fetchFailed', { defaultValue: '获取文件列表失败' }));
           }
         }
+        // ========== CUSTOM END: REQ-003 - 2025-11-11 ==========
+        else {
+          // 没有配置环境变量，从三个环境都拉取（原有逻辑）
+          console.log(`[OBSBrowser] 从所有环境获取文件列表`);
 
-        setFiles(allFiles);
-        console.log(`[OBSBrowser] 总共获取 ${allFiles.length} 个文件`);
+          const envs = ['dev', 'test', 'prod'];
+          const allFiles = [];
 
-        if (allFiles.length === 0) {
-          setError(t('obsUpload.noFilesFound', { defaultValue: '未找到任何文件' }));
+          for (const envName of envs) {
+            const prefix = `env=${envName}/messageType=conversation_data/agentType=${agentType}/${currentFolder}/`;
+            console.log(`[OBSBrowser] 获取文件列表: ${prefix}`);
+
+            try {
+              const response = await fetch('/api/obs/list', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prefix }),
+              });
+
+              const data = await response.json();
+
+              if (data.success && data.files.length > 0) {
+                // 为每个文件添加环境标记
+                const filesWithEnv = data.files.map(file => ({
+                  ...file,
+                  env: envName,
+                }));
+                allFiles.push(...filesWithEnv);
+                console.log(`[OBSBrowser] 从 ${envName} 环境获取到 ${data.files.length} 个文件`);
+              }
+            } catch (err) {
+              console.warn(`[OBSBrowser] 从 ${envName} 环境获取文件失败:`, err);
+              // 继续获取下一个环境
+            }
+          }
+
+          setFiles(allFiles);
+          console.log(`[OBSBrowser] 总共获取 ${allFiles.length} 个文件`);
+
+          if (allFiles.length === 0) {
+            setError(t('obsUpload.noFilesFound', { defaultValue: '未找到任何文件' }));
+          }
         }
       } else {
         // 无externalId，只从选定的环境拉取
@@ -188,46 +234,67 @@ export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) 
         {/* 路径配置区域 */}
         <Box sx={{ mb: 3 }}>
           {project?.externalId ? (
-            // ========== CUSTOM START ==========
-            // 定制说明: REQ-003 - 有externalId时自动从三个环境拉取
-            // 修改日期: 2025-11-11 | 修改人: Claude Code
-            // 有externalId: 自动使用externalId作为agentType，从dev/test/prod三个环境拉取文件
-            // TODO: 后续优化 - 创建项目时传入环境信息，避免三环境拉取
+            // ========== CUSTOM START: REQ-003 - 2025-11-11 ==========
+            // 功能: 有externalId时根据环境变量决定拉取策略
+            // 有externalId: 自动使用externalId作为agentType
+            // - 如果配置了OBS_DEFAULT_ENV环境变量，只从该环境拉取
+            // - 否则从dev/test/prod三个环境拉取文件
             <Alert severity="info" sx={{ mb: 2 }}>
               <Typography variant="body2" sx={{ mb: 1 }}>
                 <strong>AgentType:</strong> {agentType}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                自动从项目中获取
+                {isValidEnv
+                  ? `使用环境变量配置，从 ${defaultEnv} 环境拉取`
+                  : '自动从项目中获取，将从所有环境拉取数据'
+                }
               </Typography>
             </Alert>
-            // ========== CUSTOM END ==========
+            // ========== CUSTOM END: REQ-003 - 2025-11-11 ==========
           ) : (
-            // 无externalId: 显示环境选择和手动输入
+            // ========== CUSTOM START: REQ-003 - 2025-11-11 ==========
+            // 功能: 无externalId时根据环境变量决定UI显示
+            // 无externalId: 根据是否配置环境变量决定UI
             <Box sx={{ display: 'flex', gap: 2, flexDirection: 'column' }}>
-              <FormControl fullWidth>
-                <InputLabel>{t('obsUpload.environment', { defaultValue: '环境' })}</InputLabel>
-                <Select value={env} onChange={(e) => setEnv(e.target.value)} label={t('obsUpload.environment')}>
-                  <MenuItem value="dev">
-                    <Box>
-                      <Typography variant="body1">Development</Typography>
-                      <Typography variant="caption" color="text.secondary">开发环境</Typography>
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="test">
-                    <Box>
-                      <Typography variant="body1">Test</Typography>
-                      <Typography variant="caption" color="text.secondary">测试环境</Typography>
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="prod">
-                    <Box>
-                      <Typography variant="body1">Production</Typography>
-                      <Typography variant="caption" color="text.secondary">生产环境</Typography>
-                    </Box>
-                  </MenuItem>
-                </Select>
-              </FormControl>
+              {isValidEnv ? (
+                // 配置了环境变量：只显示提示信息，不显示选择框
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    <strong>{t('obsUpload.environment', { defaultValue: '环境' })}:</strong>{' '}
+                    {defaultEnv === 'dev' && 'Development (开发环境)'}
+                    {defaultEnv === 'test' && 'Test (测试环境)'}
+                    {defaultEnv === 'prod' && 'Production (生产环境)'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    使用环境变量配置
+                  </Typography>
+                </Alert>
+              ) : (
+                // 未配置环境变量：显示环境选择框
+                <FormControl fullWidth>
+                  <InputLabel>{t('obsUpload.environment', { defaultValue: '环境' })}</InputLabel>
+                  <Select value={env} onChange={(e) => setEnv(e.target.value)} label={t('obsUpload.environment')}>
+                    <MenuItem value="dev">
+                      <Box>
+                        <Typography variant="body1">Development</Typography>
+                        <Typography variant="caption" color="text.secondary">开发环境</Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="test">
+                      <Box>
+                        <Typography variant="body1">Test</Typography>
+                        <Typography variant="caption" color="text.secondary">测试环境</Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="prod">
+                      <Box>
+                        <Typography variant="body1">Production</Typography>
+                        <Typography variant="caption" color="text.secondary">生产环境</Typography>
+                      </Box>
+                    </MenuItem>
+                  </Select>
+                </FormControl>
+              )}
 
               <TextField
                 fullWidth
@@ -238,9 +305,10 @@ export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) 
                 helperText={t('obsUpload.agentTypeHelp', { defaultValue: '请输入agentType，将构建路径' })}
               />
             </Box>
+            // ========== CUSTOM END: REQ-003 - 2025-11-11 ==========
           )}
 
-          {/* 显示当前路径 - 仅在无externalId时显示单一路径 */}
+          {/* 显示当前路径 - 在无externalId且有agentType时显示 */}
           {agentType && !project?.externalId && (
             <Box sx={{ mt: 2, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
               <Typography variant="caption" color="text.secondary">
