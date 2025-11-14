@@ -18,4 +18,3 @@ mock-login-callback.ts
 /local-db
 prisma/local-db/db.sqlite
 /local-db2
-.trae
