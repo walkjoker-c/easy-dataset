@@ -20,6 +20,14 @@ model Projects {
   externalId           String?                @unique
   // ========== CUSTOM END ==========
 
+  // ========== CUSTOM START ==========
+  // 定制说明: REQ-004 Keycloak鉴权功能 - 记录项目创建者
+  // 修改日期: 2025-11-17
+  // 用途: 记录项目创建者的Keycloak用户ID (UUID) 或 "admin"
+  // NULL值表示现有项目(向后兼容,允许所有用户访问)
+  createdByUserId      String?
+  // ========== CUSTOM END ==========
+
   globalPrompt         String                 @default("")
   questionPrompt       String                 @default("")
   answerPrompt         String                 @default("")
