@@ -2,9 +2,14 @@
 
 import Navbar from '@/components/Navbar';
 import { useState, useEffect } from 'react';
-import { Box, CircularProgress, Typography, Button } from '@mui/material';
+import { Box, CircularProgress, Typography, Button, Alert } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
+// ========== CUSTOM START ==========
+// 定制说明: REQ-004 Keycloak鉴权功能 - 导入错误处理工具
+// 修改日期: 2025-11-18
+import { handleApiError } from '@/lib/custom/utils/errorHandler';
+// ========== CUSTOM END ==========
 
 export default function ProjectLayout({ children, params }) {
   const router = useRouter();
@@ -19,30 +24,32 @@ export default function ProjectLayout({ children, params }) {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError(null); // 清空之前的错误
+
+      // ========== CUSTOM START ==========
+      // 定制说明: REQ-004 Keycloak鉴权功能 - 使用错误处理工具
+      // 修改日期: 2025-11-18
 
       // 获取用户创建的项目详情
       const projectsResponse = await fetch(`/api/projects`);
-      if (!projectsResponse.ok) {
-        throw new Error(t('projects.fetchFailed'));
-      }
-      const projectsData = await projectsResponse.json();
+      const projectsData = await handleApiError(projectsResponse, { router, setError });
+      if (!projectsData) return; // 错误时handleApiError已处理
       setProjects(projectsData);
 
       // 获取当前项目详情
       const projectResponse = await fetch(`/api/projects/${projectId}`);
-      if (!projectResponse.ok) {
-        // 如果项目不存在，跳转到首页
-        if (projectResponse.status === 404) {
-          router.push('/');
-          return;
-        }
-        throw new Error('获取项目详情失败');
+      // 特殊处理404: 项目不存在时直接跳转首页
+      if (projectResponse.status === 404) {
+        router.push('/');
+        return;
       }
-      const projectData = await projectResponse.json();
+      const projectData = await handleApiError(projectResponse, { router, setError });
+      if (!projectData) return; // 错误时handleApiError已处理
       setCurrentProject(projectData);
+      // ========== CUSTOM END ==========
     } catch (error) {
       console.error('加载项目数据出错:', error);
-      setError(error.message);
+      setError(error.message || '加载失败');
     } finally {
       setLoading(false);
     }
@@ -76,6 +83,9 @@ export default function ProjectLayout({ children, params }) {
     );
   }
 
+  // ========== CUSTOM START ==========
+  // 定制说明: REQ-004 Keycloak鉴权功能 - 优化错误展示
+  // 修改日期: 2025-11-18
   if (error) {
     return (
       <Box
@@ -84,18 +94,27 @@ export default function ProjectLayout({ children, params }) {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          height: '100vh'
+          height: '100vh',
+          p: 3
         }}
       >
-        <Typography color="error">
-          {t('projects.fetchFailed')}: {error}
-        </Typography>
-        <Button variant="contained" onClick={() => router.push('/')} sx={{ mt: 2 }}>
-          {t('projects.backToHome')}
-        </Button>
+        <Alert severity="error" sx={{ maxWidth: 600, mb: 2 }}>
+          <Typography variant="body1" fontWeight="600">
+            {error}
+          </Typography>
+        </Alert>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button variant="contained" onClick={fetchData}>
+            重试
+          </Button>
+          <Button variant="outlined" onClick={() => router.push('/')}>
+            {t('projects.backToHome')}
+          </Button>
+        </Box>
       </Box>
     );
   }
+  // ========== CUSTOM END ==========
 
   return (
     <>
