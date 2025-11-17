@@ -190,6 +190,51 @@ docker run -d \
 
 4. Open a browser and visit `http://localhost:1717`
 
+## Configuration
+
+### Environment Variables
+
+The application uses environment variables for configuration. Create a `.env.local` file in the project root directory:
+
+```bash
+# ==================== Keycloak Authentication (Optional) ====================
+# Keycloak introspect endpoint URL
+KEYCLOAK_INTROSPECT_URL=https://your-keycloak-server/realms/your-realm/protocol/openid-connect/token/introspect
+
+# Keycloak client credentials
+KEYCLOAK_CLIENT_ID=your-client-id
+KEYCLOAK_CLIENT_SECRET=your-client-secret
+
+# Admin password (minimum 8 characters, change in production)
+ADMIN_PASSWORD=your-admin-password
+
+# Session encryption key (minimum 32 characters)
+SESSION_SECRET=your-random-32-character-secret-key
+
+# ==================== OBS Storage (Optional) ====================
+# For Huawei Cloud OBS integration (REQ-003)
+OBS_ACCESS_KEY=your-access-key
+OBS_SECRET_KEY=your-secret-key
+OBS_ENDPOINT=https://obs.your-region.myhuaweicloud.com
+OBS_BUCKET=your-bucket-name
+```
+
+> **Note**: The authentication feature is optional. If not configured, the application will work without authentication.
+
+### Admin Login
+
+If you have configured the authentication feature:
+
+1. Visit `/admin/login` in your browser
+2. Enter the admin password configured in `ADMIN_PASSWORD`
+3. After login, you can access all projects in the system
+
+### User Authentication
+
+- Regular users authenticate by providing a JWT token in the `Authorization` cookie
+- Users can only access projects they created
+- Legacy projects (created before authentication) are accessible to all authenticated users
+
 ## How to Use
 
 ### Create a Project

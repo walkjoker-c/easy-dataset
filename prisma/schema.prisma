@@ -12,22 +12,6 @@ model Projects {
   id                   String                 @id @default(nanoid(12))
   name                 String
   description          String
-
-  // ========== CUSTOM START ==========
-  // 定制说明: 为员工API映射功能添加外部系统ID字段
-  // 修改日期: 2025-11-08 | 需求: REQ-002
-  // 用途: 通过externalId映射外部系统(如employeeId)到项目,释放name为展示用途
-  externalId           String?                @unique
-  // ========== CUSTOM END ==========
-
-  // ========== CUSTOM START ==========
-  // 定制说明: REQ-004 Keycloak鉴权功能 - 记录项目创建者
-  // 修改日期: 2025-11-17
-  // 用途: 记录项目创建者的Keycloak用户ID (UUID) 或 "admin"
-  // NULL值表示现有项目(向后兼容,允许所有用户访问)
-  createdByUserId      String?
-  // ========== CUSTOM END ==========
-
   globalPrompt         String                 @default("")
   questionPrompt       String                 @default("")
   answerPrompt         String                 @default("")
@@ -38,24 +22,25 @@ model Projects {
   test                 String                 @default("")
   createAt             DateTime               @default(now())
   updateAt             DateTime               @updatedAt
-  Questions            Questions[]
-  Datasets             Datasets[]
-  DatasetConversations DatasetConversations[]
+  createdByUserId      String?
+  externalId           String?                @unique
   Chunks               Chunks[]
+  CustomPrompts        CustomPrompts[]
+  DatasetConversations DatasetConversations[]
+  Datasets             Datasets[]
+  GaPairs              GaPairs[]
+  ImageDatasets        ImageDatasets[]
+  Images               Images[]
   ModelConfig          ModelConfig[]
-  UploadFiles          UploadFiles[]
+  QuestionTemplates    QuestionTemplates[]
+  Questions            Questions[]
   Tags                 Tags[]
   Task                 Task[]
-  GaPairs              GaPairs[]
-  CustomPrompts        CustomPrompts[]
-  Images               Images[]
-  ImageDatasets        ImageDatasets[]
-  QuestionTemplates    QuestionTemplates[]
+  UploadFiles          UploadFiles[]
 }
 
 model UploadFiles {
   id        String    @id @default(nanoid())
-  project   Projects  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String
   fileName  String
   fileExt   String
@@ -65,12 +50,12 @@ model UploadFiles {
   createAt  DateTime  @default(now())
   updateAt  DateTime  @updatedAt
   GaPairs   GaPairs[]
+  project   Projects  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model Chunks {
   id        String      @id @default(nanoid())
   name      String
-  project   Projects    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String
   fileId    String
   fileName  String
@@ -79,6 +64,7 @@ model Chunks {
   size      Int
   createAt  DateTime    @default(now())
   updateAt  DateTime    @updatedAt
+  project   Projects    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   Questions Questions[]
 
   @@index([projectId])
@@ -87,29 +73,29 @@ model Chunks {
 model Tags {
   id        String   @id @default(nanoid())
   label     String
-  project   Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String
   parentId  String?
   parent    Tags?    @relation("Tags", fields: [parentId], references: [id])
   children  Tags[]   @relation("Tags")
+  project   Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model Questions {
   id         String   @id @default(nanoid())
-  project    Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId  String
-  chunk      Chunks   @relation(fields: [chunkId], references: [id])
   chunkId    String
-  gaPair     GaPairs? @relation(fields: [gaPairId], references: [id])
-  gaPairId   String? // Optional: links question to the GA pair that generated it
+  gaPairId   String?
   question   String
   label      String
   answered   Boolean  @default(false)
-  imageId    String? // Optional: for image-based questions
-  imageName  String? // Optional: for image-based questions
-  templateId String? // Optional: links to ImageQuestionTemplates
+  imageId    String?
+  imageName  String?
+  templateId String?
   createAt   DateTime @default(now())
   updateAt   DateTime @updatedAt
+  gaPair     GaPairs? @relation(fields: [gaPairId], references: [id])
+  chunk      Chunks   @relation(fields: [chunkId], references: [id])
+  project    Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([imageId])
@@ -118,12 +104,11 @@ model Questions {
 
 model Datasets {
   id            String   @id @default(nanoid())
-  project       Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId     String
   questionId    String
   question      String
   answer        String
-  answerType    String?  @default("text") // 'text' | 'label' | 'custom_format'
+  answerType    String?  @default("text")
   chunkName     String
   chunkContent  String
   model         String
@@ -131,38 +116,39 @@ model Datasets {
   cot           String
   confirmed     Boolean  @default(false)
   score         Float    @default(0)
-  aiEvaluation  String   @default("") // AI评估结论
+  aiEvaluation  String   @default("")
   tags          String   @default("")
   note          String   @default("")
-  other         String   @default("") // 存储其他字段的JSON字符串
+  other         String   @default("")
   createAt      DateTime @default(now())
   updateAt      DateTime @updatedAt
+  project       Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
 }
 
 model DatasetConversations {
   id            String   @id @default(nanoid())
-  project       Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId     String
-  questionId    String // 第一个问题 Id（初始问题）
-  question      String // 第一个问题（初始问题）
-  chunkId       String // 基于哪个文本块生成
+  questionId    String
+  question      String
+  chunkId       String
   model         String
   questionLabel String
   score         Float    @default(0)
-  aiEvaluation  String   @default("") // AI评估结论
+  aiEvaluation  String   @default("")
   tags          String   @default("")
   note          String   @default("")
-  scenario      String // 对话场景（教学/咨询/讨论等）
-  roleA         String // 角色A设定
-  roleB         String // 角色B设定  
-  turnCount     Int // 实际轮数
-  maxTurns      Int // 设置的最大轮数
-  rawMessages   String // JSON存储完整对话（和 ShareGPT 格式保持完全一致）
+  scenario      String
+  roleA         String
+  roleB         String
+  turnCount     Int
+  maxTurns      Int
+  rawMessages   String
   confirmed     Boolean  @default(false)
   createAt      DateTime @default(now())
   updateAt      DateTime @updatedAt
+  project       Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
 }
@@ -180,15 +166,14 @@ model LlmModels {
   id         String       @id @default(nanoid())
   modelId    String
   modelName  String
-  provider   LlmProviders @relation(fields: [providerId], references: [id])
   providerId String
   createAt   DateTime     @default(now())
   updateAt   DateTime     @updatedAt
+  provider   LlmProviders @relation(fields: [providerId], references: [id])
 }
 
 model ModelConfig {
   id           String   @id @default(nanoid())
-  project      Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId    String
   providerId   String
   providerName String
@@ -204,39 +189,40 @@ model ModelConfig {
   status       Int
   createAt     DateTime @default(now())
   updateAt     DateTime @updatedAt
+  project      Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model Task {
   id             String    @id @default(nanoid())
-  project        Projects  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId      String
-  taskType       String // 任务类型: text-processing, question-generation, answer-generation, data-distillation
-  status         Int // 任务状态: 0-处理中, 1-已完成, 2-失败, 3-已中断
+  taskType       String
+  status         Int
   startTime      DateTime  @default(now())
   endTime        DateTime?
   completedCount Int       @default(0)
   totalCount     Int       @default(0)
-  modelInfo      String // JSON格式存储，包含使用的模型信息
+  modelInfo      String
   language       String    @default("zh-CN")
-  detail         String    @default("") // 任务详情
-  note           String    @default("") // 任务备注
+  detail         String    @default("")
+  note           String    @default("")
   createAt       DateTime  @default(now())
   updateAt       DateTime  @updatedAt
+  project        Projects  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
 }
 
 model CustomPrompts {
   id         String   @id @default(nanoid())
-  project    Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId  String
-  promptType String // 提示词类型，对应 lib/llm/prompts 下的文件名
-  promptKey  String // 提示词在模块中的键名，如 QUESTION_PROMPT, QUESTION_PROMPT_EN
-  language   String // 语言: zh-CN, en
-  content    String // 自定义的提示词内容
-  isActive   Boolean  @default(true) // 是否启用
+  promptType String
+  promptKey  String
+  language   String
+  content    String
+  isActive   Boolean  @default(true)
   createAt   DateTime @default(now())
   updateAt   DateTime @updatedAt
+  project    Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, promptType, promptKey, language])
   @@index([projectId, promptType])
@@ -245,19 +231,19 @@ model CustomPrompts {
 
 model GaPairs {
   id            String      @id @default(nanoid())
-  project       Projects    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId     String
-  uploadFile    UploadFiles @relation(fields: [fileId], references: [id], onDelete: Cascade)
   fileId        String
-  pairNumber    Int // 1-5, representing the 5 generated pairs
-  genreTitle    String // Genre name/title
-  genreDesc     String // Genre description
-  audienceTitle String // Audience name/title  
-  audienceDesc  String // Audience description
-  isActive      Boolean     @default(true) // Whether this pair is active for use
-  questions     Questions[] // Questions generated by this GA pair
+  pairNumber    Int
+  genreTitle    String
+  genreDesc     String
+  audienceTitle String
+  audienceDesc  String
+  isActive      Boolean     @default(true)
   createAt      DateTime    @default(now())
   updateAt      DateTime    @updatedAt
+  uploadFile    UploadFiles @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  project       Projects    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  questions     Questions[]
 
   @@unique([fileId, pairNumber])
   @@index([projectId])
@@ -266,16 +252,16 @@ model GaPairs {
 
 model Images {
   id            String          @id @default(nanoid())
-  project       Projects        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId     String
   imageName     String
-  path          String // 图片存储路径
-  size          Int // 文件大小（字节）
-  width         Int? // 图片宽度
-  height        Int? // 图片高度
+  path          String
+  size          Int
+  width         Int?
+  height        Int?
   createAt      DateTime        @default(now())
   updateAt      DateTime        @updatedAt
   ImageDatasets ImageDatasets[]
+  project       Projects        @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, imageName])
   @@index([projectId])
@@ -283,15 +269,13 @@ model Images {
 
 model ImageDatasets {
   id         String   @id @default(nanoid())
-  project    Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId  String
-  image      Images   @relation(fields: [imageId], references: [id], onDelete: Cascade)
   imageId    String
   imageName  String
-  questionId String? // Optional: links to Questions table
+  questionId String?
   question   String
-  answer     String // Stores all answer types: text, JSON array for labels, or custom format JSON
-  answerType String   @default("text") // 'text' | 'label' | 'custom_format'
+  answer     String
+  answerType String   @default("text")
   model      String
   confirmed  Boolean  @default(false)
   score      Float    @default(0)
@@ -299,6 +283,8 @@ model ImageDatasets {
   note       String   @default("")
   createAt   DateTime @default(now())
   updateAt   DateTime @updatedAt
+  image      Images   @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  project    Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([imageId])
@@ -307,17 +293,17 @@ model ImageDatasets {
 
 model QuestionTemplates {
   id           String   @id @default(nanoid())
-  project      Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId    String
-  question     String // Question content
-  sourceType   String // 'image' | 'text' - data source type
-  answerType   String // 'text' | 'label' | 'custom_format'
-  description  String   @default("") // Question description
-  labels       String   @default("") // JSON array of label options (for answerType='label')
-  customFormat String   @default("") // Custom format definition (for answerType='custom_format')
-  order        Int      @default(0) // Display order
+  question     String
+  sourceType   String
+  answerType   String
+  description  String   @default("")
+  labels       String   @default("")
+  customFormat String   @default("")
+  order        Int      @default(0)
   createAt     DateTime @default(now())
   updateAt     DateTime @updatedAt
+  project      Projects @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([projectId, sourceType])
