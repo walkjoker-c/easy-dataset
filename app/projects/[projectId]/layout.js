@@ -97,7 +97,9 @@ export default function ProjectLayout({ children, params }) {
   //          管理员项目显示super_user登录按钮(带redirect)
   // 修改日期: 2025-11-18
   if (error) {
-    // ISS-006: 检查是否是管理员/审核员专属项目错误
+    // ISS-006: 检查是否是管理员项目
+    // 错误消息包含"仅管理员和审核员可访问"时显示登录按钮
+    // (此错误消息由middleware在检测到admin项目时返回)
     const isAdminOnlyProject = error.includes('仅管理员和审核员可访问');
 
     return (
