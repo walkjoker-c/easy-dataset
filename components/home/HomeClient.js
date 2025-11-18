@@ -22,7 +22,12 @@ import MigrationDialog from '@/components/home/MigrationDialog';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
-export default function HomeClient() {
+// ========== CUSTOM START ==========
+// ISS-006: 支持super_user角色 - 接收role prop
+// 修改日期: 2025-11-18
+// ========== CUSTOM END ==========
+
+export default function HomeClient({ role = 'admin' }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [projects, setProjects] = useState([]);
@@ -32,6 +37,12 @@ export default function HomeClient() {
   const [unmigratedProjects, setUnmigratedProjects] = useState([]);
   const [migrationDialogOpen, setMigrationDialogOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // ========== CUSTOM START ==========
+  // ISS-006: 基于角色的权限判断
+  const canCreateProject = role === 'admin';
+  const canDeleteProject = role === 'admin';
+  // ========== CUSTOM END ==========
 
   useEffect(() => {
     async function fetchProjects() {
@@ -82,19 +93,23 @@ export default function HomeClient() {
   }, []);
 
   // ========== CUSTOM: 登出功能 - REQ-004 补充需求 ==========
+  // ========== ISS-006: 支持super_user登出 ==========
   /**
-   * 处理管理员登出
+   * 处理管理员/super_user登出
    */
   const handleLogout = async () => {
     setLoggingOut(true);
 
     try {
-      const response = await fetch('/api/admin/logout', {
+      // 根据角色选择登出API
+      const logoutUrl = role === 'super_user' ? '/api/super-user/logout' : '/api/admin/logout';
+
+      const response = await fetch(logoutUrl, {
         method: 'POST',
       });
 
       if (response.ok) {
-        console.log('[Home Client] Logout successful, redirecting to login page');
+        console.log(`[Home Client] ${role} logout successful, redirecting to login page`);
         // 登出成功,刷新页面(服务端会重定向到登录页)
         router.refresh();
       } else {
@@ -114,9 +129,13 @@ export default function HomeClient() {
     <main style={{ overflow: 'hidden', position: 'relative' }}>
       <Navbar projects={projects} />
 
-      <HeroSection onCreateProject={() => setCreateDialogOpen(true)} />
+      <HeroSection
+        onCreateProject={() => setCreateDialogOpen(true)}
+        canCreateProject={canCreateProject}
+      />
 
       {/* ========== CUSTOM: 管理员状态栏和登出按钮 - REQ-004 补充需求 ========== */}
+      {/* ========== ISS-006: 支持super_user状态显示 ========== */}
       <Container maxWidth="lg" sx={{ mt: 2 }}>
         <Box
           sx={{
@@ -125,14 +144,14 @@ export default function HomeClient() {
             alignItems: 'center',
             gap: 2,
             p: 2,
-            bgcolor: 'success.light',
+            bgcolor: role === 'super_user' ? 'info.light' : 'success.light',
             borderRadius: 1,
           }}
         >
           <Chip
             icon={<AdminPanelSettingsIcon />}
-            label="管理员已登录"
-            color="success"
+            label={role === 'super_user' ? '审核模式' : '管理员已登录'}
+            color={role === 'super_user' ? 'info' : 'success'}
             size="small"
           />
           <Button
@@ -208,7 +227,12 @@ export default function HomeClient() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <ProjectList projects={projects} onCreateProject={() => setCreateDialogOpen(true)} />
+            <ProjectList
+              projects={projects}
+              onCreateProject={() => setCreateDialogOpen(true)}
+              canCreateProject={canCreateProject}
+              canDeleteProject={canDeleteProject}
+            />
           </motion.div>
         )}
       </Container>

@@ -16,7 +16,12 @@ import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import ProjectCard from './ProjectCard';
 
-export default function ProjectList({ projects, onCreateProject }) {
+// ========== CUSTOM START ==========
+// ISS-006: 支持基于角色隐藏创建/删除按钮
+// 修改日期: 2025-11-18
+// ========== CUSTOM END ==========
+
+export default function ProjectList({ projects, onCreateProject, canCreateProject = true, canDeleteProject = true }) {
   const { t } = useTranslation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
@@ -68,15 +73,23 @@ export default function ProjectList({ projects, onCreateProject }) {
               <Typography variant="h6" color="text.secondary" gutterBottom>
                 {t('projects.noProjects')}
               </Typography>
-              <Button variant="contained" onClick={onCreateProject} startIcon={<AddCircleOutlineIcon />} sx={{ mt: 2 }}>
-                {t('projects.createFirst')}
-              </Button>
+              {/* ========== CUSTOM START ========== */}
+              {/* ISS-006: 仅admin显示创建按钮 */}
+              {canCreateProject && (
+                <Button variant="contained" onClick={onCreateProject} startIcon={<AddCircleOutlineIcon />} sx={{ mt: 2 }}>
+                  {t('projects.createFirst')}
+                </Button>
+              )}
+              {/* ========== CUSTOM END ========== */}
             </Paper>
           </Grid>
         ) : (
           projects.map(project => (
             <Grid item xs={12} sm={6} md={4} key={project.id}>
-              <ProjectCard project={project} onDeleteClick={handleOpenDeleteDialog} />
+              {/* ========== CUSTOM START ========== */}
+              {/* ISS-006: 传递canDelete权限到ProjectCard */}
+              <ProjectCard project={project} onDeleteClick={handleOpenDeleteDialog} canDelete={canDeleteProject} />
+              {/* ========== CUSTOM END ========== */}
             </Grid>
           ))
         )}

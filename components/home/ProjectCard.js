@@ -21,13 +21,19 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 
+// ========== CUSTOM START ==========
+// ISS-006: 支持基于角色隐藏删除按钮
+// 修改日期: 2025-11-18
+// ========== CUSTOM END ==========
+
 /**
  * 项目卡片组件
  * @param {Object} props - 组件属性
  * @param {Object} props.project - 项目数据
  * @param {Function} props.onDeleteClick - 删除按钮点击事件处理函数
+ * @param {boolean} props.canDelete - 是否可以删除项目 (ISS-006)
  */
-export default function ProjectCard({ project, onDeleteClick }) {
+export default function ProjectCard({ project, onDeleteClick, canDelete = true }) {
   const { t } = useTranslation();
   const [processingId, setProcessingId] = useState(false);
 
@@ -135,9 +141,14 @@ export default function ProjectCard({ project, onDeleteClick }) {
                     <FolderOpenIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <IconButton size="small" color="error" onClick={handleDeleteClick}>
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
+                {/* ========== CUSTOM START ========== */}
+                {/* ISS-006: 仅admin显示删除按钮 */}
+                {canDelete && (
+                  <IconButton size="small" color="error" onClick={handleDeleteClick}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                )}
+                {/* ========== CUSTOM END ========== */}
               </Box>
             </Box>
           </CardContent>

@@ -3,9 +3,31 @@ import { createInitModelConfig, getModelConfigByProjectId } from '@/lib/db/model
 // CUSTOM: 导入默认模型配置 (修复批次3测试问题1-正确版)
 import { MODEL_PROVIDERS, DEFAULT_PROJECT_MODEL_PROVIDER_ID } from '@/constant/model';
 import { nanoid } from 'nanoid';
+// ========== CUSTOM START ==========
+// ISS-006: 导入Session管理 - 支持super_user项目过滤
+// 修改日期: 2025-11-18
+import { getSession } from '@/lib/custom/auth/session';
+// ========== CUSTOM END ==========
 
 export async function POST(request) {
   try {
+    // ========== CUSTOM START ==========
+    // ISS-006: Super User不能创建项目
+    // 定制说明: super_user仅有查看权限,不允许创建项目
+    // 修改日期: 2025-11-18
+
+    const session = await getSession();
+
+    // 检查是否是super_user,如果是则拒绝创建
+    if (session?.isSuperUser === true) {
+      console.warn('[Projects API POST] Super user tried to create project, rejected');
+      return Response.json(
+        { error: '审核员没有权限创建项目' },
+        { status: 403 }
+      );
+    }
+    // ========== CUSTOM END ==========
+
     const projectData = await request.json();
     // 验证必要的字段
     if (!projectData.name) {
@@ -86,8 +108,28 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
+    // ========== CUSTOM START ==========
+    // ISS-006: super_user项目过滤
+    // 定制说明: super_user仅能查看管理员创建的项目
+    // 修改日期: 2025-11-18
+
+    // 获取Session
+    const session = await getSession();
+
     // 获取所有项目
-    const projects = await getProjects();
+    let projects = await getProjects();
+
+    // 如果是super_user,仅返回管理员创建的项目
+    if (session?.isSuperUser === true) {
+      projects = projects.filter(project => project.createdByUserId === 'admin');
+      console.log(`[Projects API GET] Super user filtered ${projects.length} admin projects`);
+    } else if (session?.isAdmin === true) {
+      console.log(`[Projects API GET] Admin accessing all ${projects.length} projects`);
+    } else {
+      console.log(`[Projects API GET] Guest/JWT user accessing all ${projects.length} projects`);
+    }
+    // ========== CUSTOM END ==========
+
     return Response.json(projects);
   } catch (error) {
     console.error('获取项目列表出错:', String(error));

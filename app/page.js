@@ -21,18 +21,21 @@ export const dynamic = 'force-dynamic';
  */
 export default async function Home() {
   // ========== CUSTOM: 登录检查逻辑 - REQ-004 补充需求 ==========
-  // 检查管理员Session
+  // ========== ISS-006: 支持super_user访问 ==========
+  // 检查Session (支持admin和super_user)
   const session = await getSession();
 
-  // 如果未登录(无Session或isAdmin不为true),重定向到登录页
-  if (!session.isAdmin) {
+  // 如果未登录,重定向到登录页
+  if (!session.isAdmin && !session.isSuperUser) {
     console.log('[Home Page] User not logged in, redirecting to /admin/login');
     redirect('/admin/login');
   }
 
-  console.log('[Home Page] Admin logged in, rendering page');
+  // 确定用户角色
+  const role = session.isAdmin ? 'admin' : 'super_user';
+  console.log(`[Home Page] User logged in as ${role}, rendering page`);
   // ========== CUSTOM END ==========
 
-  // 渲染客户端组件(原有的页面逻辑)
-  return <HomeClient />;
+  // 渲染客户端组件,传递角色信息
+  return <HomeClient role={role} />;
 }
