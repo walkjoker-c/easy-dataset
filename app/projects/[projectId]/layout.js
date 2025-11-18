@@ -92,9 +92,14 @@ export default function ProjectLayout({ children, params }) {
 
   // ========== CUSTOM START ==========
   // ISS-004: 优化未授权访问错误页面UI
+  // ISS-006: 管理员项目显示super_user登录提示
   // 定制说明: 移除"重试"和"返回首页"按钮,避免无效操作和暴露登录入口
+  //          管理员项目显示super_user登录按钮(带redirect)
   // 修改日期: 2025-11-18
   if (error) {
+    // ISS-006: 检查是否是管理员/审核员专属项目错误
+    const isAdminOnlyProject = error.includes('仅管理员和审核员可访问');
+
     return (
       <Box
         sx={{
@@ -110,6 +115,26 @@ export default function ProjectLayout({ children, params }) {
           <Typography variant="body1" fontWeight="600">
             {error}
           </Typography>
+
+          {/* ISS-006: 管理员项目显示super_user登录提示 */}
+          {isAdminOnlyProject && (
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+              <Typography variant="body2" color="text.secondary">
+                如果您是审核员,请
+                <Button
+                  size="small"
+                  sx={{ ml: 1 }}
+                  variant="outlined"
+                  onClick={() => {
+                    const currentPath = window.location.pathname;
+                    router.push(`/super-user/login?redirect=${encodeURIComponent(currentPath)}`);
+                  }}
+                >
+                  点击登录
+                </Button>
+              </Typography>
+            </Box>
+          )}
         </Alert>
         {/* ISS-004: 移除"重试"和"返回首页"按钮,保持错误页面简洁 */}
       </Box>
