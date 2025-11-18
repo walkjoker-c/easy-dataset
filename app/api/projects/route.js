@@ -47,6 +47,19 @@ export async function POST(request) {
 
     // 新逻辑: 不再检查name重复
     // ========== CUSTOM END ==========
+
+    // ========== CUSTOM START ==========
+    // ISS-006: admin创建项目时设置createdByUserId
+    // 定制说明: admin通过UI创建的项目需要标记为admin所有,用于权限控制
+    // 修改日期: 2025-11-18
+
+    // 如果是admin登录,设置createdByUserId为'admin'
+    if (session?.isAdmin === true) {
+      projectData.createdByUserId = 'admin';
+      console.log('[Projects API POST] Admin creating project, set createdByUserId=admin');
+    }
+    // ========== CUSTOM END ==========
+
     // 创建项目
     const newProject = await createProject(projectData);
     // 如果指定了要复用的项目配置
