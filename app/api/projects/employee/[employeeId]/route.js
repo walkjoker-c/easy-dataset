@@ -75,6 +75,17 @@ export async function GET(request, { params }) {
       console.log(`找到已存在的项目: ${existingProject.id}`);
 
       // ========== CUSTOM START ==========
+      // ISS-005: 旧项目createdByUserId自动补充
+      // 定制说明: 首次访问时自动补充缺失的createdByUserId字段
+      // 修改日期: 2025-11-18
+      if (existingProject.externalId && existingProject.createdByUserId === null) {
+        console.log(`[Employee API GET] Auto-filling createdByUserId for project ${existingProject.id}, externalId: ${existingProject.externalId}, userId: ${userId}`);
+        await updateProject(existingProject.id, { createdByUserId: userId });
+        console.log(`[Employee API GET] Successfully filled createdByUserId for project ${existingProject.id}`);
+      }
+      // ========== CUSTOM END ==========
+
+      // ========== CUSTOM START ==========
       // 修改日期: 2025-11-08 | 需求: REQ-002
       // 新增功能: 如果传入了name参数,更新项目名称
       if (customName) {
@@ -184,6 +195,17 @@ export async function POST(request, { params }) {
 
     if (existingProject) {
       console.log(`找到已存在的项目: ${existingProject.id}`);
+
+      // ========== CUSTOM START ==========
+      // ISS-005: 旧项目createdByUserId自动补充
+      // 定制说明: 首次访问时自动补充缺失的createdByUserId字段
+      // 修改日期: 2025-11-18
+      if (existingProject.externalId && existingProject.createdByUserId === null) {
+        console.log(`[Employee API POST] Auto-filling createdByUserId for project ${existingProject.id}, externalId: ${existingProject.externalId}, userId: ${userId}`);
+        await updateProject(existingProject.id, { createdByUserId: userId });
+        console.log(`[Employee API POST] Successfully filled createdByUserId for project ${existingProject.id}`);
+      }
+      // ========== CUSTOM END ==========
 
       // 如果传入了name或description参数,更新项目
       if (customName) {
