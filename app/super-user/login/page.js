@@ -69,17 +69,8 @@ export default function SuperUserLoginPage() {
         }}
       >
         <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
-          <Typography variant="h4" gutterBottom align="center">
+          <Typography variant="h4" gutterBottom align="center" sx={{ mb: 3 }}>
             审核员登录
-          </Typography>
-
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            align="center"
-            sx={{ mb: 3 }}
-          >
-            请输入审核员密码以访问管理员创建的项目
           </Typography>
 
           {error && (
@@ -111,16 +102,6 @@ export default function SuperUserLoginPage() {
               {loading ? '登录中...' : '登录'}
             </Button>
           </form>
-
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            align="center"
-            display="block"
-            sx={{ mt: 3 }}
-          >
-            审核员仅能访问管理员创建的项目
-          </Typography>
         </Paper>
       </Box>
     </Container>
