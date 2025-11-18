@@ -43,7 +43,14 @@ export default function ProjectLayout({ children, params }) {
         router.push('/');
         return;
       }
-      const projectData = await handleApiError(projectResponse, { router, setError });
+      // ISS-002: 安全优化 - 项目详情页禁止401跳转到登录页
+      // 定制说明: 设置allowLoginRedirect=false,防止暴露管理员登录入口
+      // 修改日期: 2025-11-18
+      const projectData = await handleApiError(projectResponse, {
+        router,
+        setError,
+        allowLoginRedirect: false  // 禁止跳转到登录页,仅显示错误
+      });
       if (!projectData) return; // 错误时handleApiError已处理
       setCurrentProject(projectData);
       // ========== CUSTOM END ==========
