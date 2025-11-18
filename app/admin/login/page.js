@@ -52,8 +52,13 @@ export default function AdminLoginPage() {
       });
 
       if (response.ok) {
-        // 登录成功,跳转到项目列表页
-        router.push('/');
+        // 登录成功,刷新路由缓存并跳转到项目列表页
+        // 使用 router.refresh() + router.push() 确保服务端组件能获取最新Session
+        router.refresh();
+        // 延迟一下确保刷新完成
+        setTimeout(() => {
+          router.push('/');
+        }, 100);
       } else {
         const data = await response.json();
         setError(data.error || '登录失败,请重试');
