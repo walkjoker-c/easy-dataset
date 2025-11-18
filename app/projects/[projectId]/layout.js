@@ -91,7 +91,8 @@ export default function ProjectLayout({ children, params }) {
   }
 
   // ========== CUSTOM START ==========
-  // 定制说明: REQ-004 Keycloak鉴权功能 - 优化错误展示
+  // ISS-004: 优化未授权访问错误页面UI
+  // 定制说明: 移除"重试"和"返回首页"按钮,避免无效操作和暴露登录入口
   // 修改日期: 2025-11-18
   if (error) {
     return (
@@ -105,19 +106,12 @@ export default function ProjectLayout({ children, params }) {
           p: 3
         }}
       >
-        <Alert severity="error" sx={{ maxWidth: 600, mb: 2 }}>
+        <Alert severity="error" sx={{ maxWidth: 600 }}>
           <Typography variant="body1" fontWeight="600">
             {error}
           </Typography>
         </Alert>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="contained" onClick={fetchData}>
-            重试
-          </Button>
-          <Button variant="outlined" onClick={() => router.push('/')}>
-            {t('projects.backToHome')}
-          </Button>
-        </Box>
+        {/* ISS-004: 移除"重试"和"返回首页"按钮,保持错误页面简洁 */}
       </Box>
     );
   }
