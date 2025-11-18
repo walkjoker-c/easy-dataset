@@ -130,10 +130,6 @@ export default function AdminLoginPage() {
             >
               {loading ? '登录中...' : '登录'}
             </Button>
-
-            <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 2 }}>
-              提示: 管理员登录后可访问所有项目
-            </Typography>
           </Box>
         </Paper>
       </Box>
