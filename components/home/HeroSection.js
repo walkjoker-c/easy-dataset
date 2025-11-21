@@ -9,7 +9,12 @@ import { motion } from 'framer-motion';
 import ParticleBackground from './ParticleBackground';
 import { useTranslation } from 'react-i18next';
 
-export default function HeroSection({ onCreateProject }) {
+// ========== CUSTOM START ==========
+// ISS-006: 支持基于角色隐藏创建按钮
+// 修改日期: 2025-11-18
+// ========== CUSTOM END ==========
+
+export default function HeroSection({ onCreateProject, canCreateProject = true }) {
   const { t } = useTranslation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -83,27 +88,32 @@ export default function HeroSection({ onCreateProject }) {
               gap: { xs: 2, sm: 3 }
             }}
           >
-            <Button
-              variant="contained"
-              size="large"
-              onClick={onCreateProject}
-              startIcon={<AddCircleOutlineIcon />}
-              sx={{
-                ...styles.createButton(theme),
-                fontWeight: 600,
-                transition: 'all 0.3s ease',
-                transform: 'translateY(0)',
-                px: 4,
-                py: 1.5,
-                borderRadius: '12px',
-                '&:hover': {
-                  transform: 'translateY(-3px)',
-                  boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
-                }
-              }}
-            >
-              {t('home.createProject')}
-            </Button>
+            {/* ========== CUSTOM START ========== */}
+            {/* ISS-006: 仅admin显示创建按钮 */}
+            {canCreateProject && (
+              <Button
+                variant="contained"
+                size="large"
+                onClick={onCreateProject}
+                startIcon={<AddCircleOutlineIcon />}
+                sx={{
+                  ...styles.createButton(theme),
+                  fontWeight: 600,
+                  transition: 'all 0.3s ease',
+                  transform: 'translateY(0)',
+                  px: 4,
+                  py: 1.5,
+                  borderRadius: '12px',
+                  '&:hover': {
+                    transform: 'translateY(-3px)',
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+                  }
+                }}
+              >
+                {t('home.createProject')}
+              </Button>
+            )}
+            {/* ========== CUSTOM END ========== */}
             <Button
               variant="contained"
               size="large"

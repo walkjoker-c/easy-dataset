@@ -1,154 +1,41 @@
-'use client';
+// ========== CUSTOM START ==========
+// CUSTOM: 页面级登录保护 - REQ-004 补充需求
+// 定制说明: 根目录页面登录保护,未登录自动跳转到管理员登录页
+// 修改日期: 2025-11-18
+// 功能: 检查管理员Session,未登录重定向到/admin/login
+// ========== CUSTOM END ==========
 
-import { useState, useEffect } from 'react';
-import { Container, Box, Typography, CircularProgress, Stack, useTheme } from '@mui/material';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import Navbar from '@/components/Navbar';
-import HeroSection from '@/components/home/HeroSection';
-import StatsCard from '@/components/home/StatsCard';
-import ProjectList from '@/components/home/ProjectList';
-import CreateProjectDialog from '@/components/home/CreateProjectDialog';
-import MigrationDialog from '@/components/home/MigrationDialog';
-import { motion } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
+import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/custom/auth/session';
+import HomeClient from '@/components/home/HomeClient';
 
-export default function Home() {
-  const { t } = useTranslation();
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [unmigratedProjects, setUnmigratedProjects] = useState([]);
-  const [migrationDialogOpen, setMigrationDialogOpen] = useState(false);
+// 告诉Next.js此页面需要动态渲染(因为使用了cookies)
+export const dynamic = 'force-dynamic';
 
-  useEffect(() => {
-    async function fetchProjects() {
-      try {
-        setLoading(true);
-        // 获取用户创建的项目详情
-        const response = await fetch(`/api/projects`);
+/**
+ * 项目列表页 - 服务端组件
+ * 功能:
+ * 1. 检查管理员Session
+ * 2. 未登录时重定向到/admin/login
+ * 3. 登录后渲染客户端组件
+ */
+export default async function Home() {
+  // ========== CUSTOM: 登录检查逻辑 - REQ-004 补充需求 ==========
+  // ========== ISS-006: 支持super_user访问 ==========
+  // 检查Session (支持admin和super_user)
+  const session = await getSession();
 
-        if (!response.ok) {
-          throw new Error(t('projects.fetchFailed'));
-        }
+  // 如果未登录,重定向到登录页
+  if (!session.isAdmin && !session.isSuperUser) {
+    console.log('[Home Page] User not logged in, redirecting to /admin/login');
+    redirect('/admin/login');
+  }
 
-        const data = await response.json();
-        setProjects(data);
+  // 确定用户角色
+  const role = session.isAdmin ? 'admin' : 'super_user';
+  console.log(`[Home Page] User logged in as ${role}, rendering page`);
+  // ========== CUSTOM END ==========
 
-        // 检查是否有未迁移的项目
-        await checkUnmigratedProjects();
-      } catch (error) {
-        console.error(t('projects.fetchError'), String(error));
-        setError(String(error));
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    // 检查未迁移的项目
-    async function checkUnmigratedProjects() {
-      try {
-        const response = await fetch('/api/projects/unmigrated');
-
-        if (!response.ok) {
-          console.error('检查未迁移项目失败');
-          return;
-        }
-
-        const { success, data } = await response.json();
-
-        if (success && Array.isArray(data) && data.length > 0) {
-          setUnmigratedProjects(data);
-          setMigrationDialogOpen(true);
-        }
-      } catch (error) {
-        console.error('检查未迁移项目出错', error);
-      }
-    }
-
-    fetchProjects();
-  }, []);
-
-  const theme = useTheme();
-
-  return (
-    <main style={{ overflow: 'hidden', position: 'relative' }}>
-      <Navbar projects={projects} />
-
-      <HeroSection onCreateProject={() => setCreateDialogOpen(true)} />
-
-      <Container
-        maxWidth="lg"
-        sx={{
-          mt: { xs: 6, md: 8 },
-          mb: { xs: 4, md: 6 },
-          position: 'relative',
-          zIndex: 1
-        }}
-      >
-        {/* <StatsCard projects={projects} /> */}
-
-        {loading && (
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              width: '100%',
-              mt: 6,
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2
-            }}
-          >
-            <CircularProgress size={40} thickness={4} />
-            <Typography variant="body2" color="text.secondary">
-              {t('projects.loading')}
-            </Typography>
-          </Box>
-        )}
-
-        {error && !loading && (
-          <Box
-            component={motion.div}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
-            sx={{
-              mt: 4,
-              p: 3,
-              bgcolor: 'error.light',
-              borderRadius: 2,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-            }}
-          >
-            <Stack direction="row" spacing={1} alignItems="center">
-              <ErrorOutlineIcon color="error" />
-              <Typography color="error.dark">
-                {t('projects.fetchFailed')}: {error}
-              </Typography>
-            </Stack>
-          </Box>
-        )}
-
-        {!loading && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <ProjectList projects={projects} onCreateProject={() => setCreateDialogOpen(true)} />
-          </motion.div>
-        )}
-      </Container>
-
-      <CreateProjectDialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} />
-
-      {/* 项目迁移对话框 */}
-      <MigrationDialog
-        open={migrationDialogOpen}
-        onClose={() => setMigrationDialogOpen(false)}
-        projectIds={unmigratedProjects}
-      />
-    </main>
-  );
+  // 渲染客户端组件,传递角色信息
+  return <HomeClient role={role} />;
 }

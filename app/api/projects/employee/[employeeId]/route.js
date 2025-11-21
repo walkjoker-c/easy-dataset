@@ -19,12 +19,31 @@ import {
 } from '@/lib/custom/employee-project';
 // ========== CUSTOM END ==========
 
+// ========== CUSTOM START ==========
+// 修改日期: 2025-11-18 | 需求: REQ-004
+// 变更说明: 导入鉴权中间件
+import { authMiddleware } from '@/lib/custom/auth/middleware';
+// ========== CUSTOM END ==========
+
 /**
  * GET方法: 员工API访问端点 (兼容性)
  * 支持查询参数: ?name=xxx&description=xxx
  */
 export async function GET(request, { params }) {
   try {
+    // ========== CUSTOM START ==========
+    // 修改日期: 2025-11-18 | 需求: REQ-004
+    // 变更说明: Token验证 (projectId=null,跳过权限验证)
+    const authResult = await authMiddleware(request, null);
+    if (!authResult.authorized) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+    const userId = authResult.userId; // 从Token提取的用户ID或"admin"
+    // ========== CUSTOM END ==========
+
     const { employeeId } = params;
 
     if (!employeeId) {
@@ -54,6 +73,17 @@ export async function GET(request, { params }) {
 
     if (existingProject) {
       console.log(`找到已存在的项目: ${existingProject.id}`);
+
+      // ========== CUSTOM START ==========
+      // ISS-005: 旧项目createdByUserId自动补充
+      // 定制说明: 首次访问时自动补充缺失的createdByUserId字段
+      // 修改日期: 2025-11-18
+      if (existingProject.externalId && existingProject.createdByUserId === null) {
+        console.log(`[Employee API GET] Auto-filling createdByUserId for project ${existingProject.id}, externalId: ${existingProject.externalId}, userId: ${userId}`);
+        await updateProject(existingProject.id, { createdByUserId: userId });
+        console.log(`[Employee API GET] Successfully filled createdByUserId for project ${existingProject.id}`);
+      }
+      // ========== CUSTOM END ==========
 
       // ========== CUSTOM START ==========
       // 修改日期: 2025-11-08 | 需求: REQ-002
@@ -88,11 +118,16 @@ export async function GET(request, { params }) {
 
     // 新逻辑:
     console.log(`创建新项目: ${employeeId}`);
+    // ========== CUSTOM START ==========
+    // 修改日期: 2025-11-18 | 需求: REQ-004
+    // 变更说明: 创建项目时记录用户ID
     const newProject = await createProjectWithExternalId({
       externalId: employeeId,
       name: customName, // 如果传入了name,使用自定义名称;否则自动生成
-      description: customDescription || `数智员工的训练项目`
+      description: customDescription || `数智员工的训练项目`,
+      createdByUserId: userId  // ⭐ 记录创建者
     });
+    // ========== CUSTOM END ==========
     console.log(`新项目创建成功: ${newProject.id}, externalId: ${employeeId}`);
     // ========== CUSTOM END ==========
 
@@ -119,6 +154,19 @@ export async function GET(request, { params }) {
  */
 export async function POST(request, { params }) {
   try {
+    // ========== CUSTOM START ==========
+    // 修改日期: 2025-11-18 | 需求: REQ-004
+    // 变更说明: Token验证 (projectId=null,跳过权限验证)
+    const authResult = await authMiddleware(request, null);
+    if (!authResult.authorized) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+    const userId = authResult.userId; // 从Token提取的用户ID或"admin"
+    // ========== CUSTOM END ==========
+
     const { employeeId } = params;
 
     if (!employeeId) {
@@ -148,6 +196,17 @@ export async function POST(request, { params }) {
     if (existingProject) {
       console.log(`找到已存在的项目: ${existingProject.id}`);
 
+      // ========== CUSTOM START ==========
+      // ISS-005: 旧项目createdByUserId自动补充
+      // 定制说明: 首次访问时自动补充缺失的createdByUserId字段
+      // 修改日期: 2025-11-18
+      if (existingProject.externalId && existingProject.createdByUserId === null) {
+        console.log(`[Employee API POST] Auto-filling createdByUserId for project ${existingProject.id}, externalId: ${existingProject.externalId}, userId: ${userId}`);
+        await updateProject(existingProject.id, { createdByUserId: userId });
+        console.log(`[Employee API POST] Successfully filled createdByUserId for project ${existingProject.id}`);
+      }
+      // ========== CUSTOM END ==========
+
       // 如果传入了name或description参数,更新项目
       if (customName) {
         await updateProject(existingProject.id, { name: customName });
@@ -167,11 +226,16 @@ export async function POST(request, { params }) {
 
     // 创建新项目
     console.log(`创建新项目: ${employeeId}`);
+    // ========== CUSTOM START ==========
+    // 修改日期: 2025-11-18 | 需求: REQ-004
+    // 变更说明: 创建项目时记录用户ID
     const newProject = await createProjectWithExternalId({
       externalId: employeeId,
       name: customName, // 如果传入了name,使用自定义名称;否则自动生成
-      description: customDescription || `数智员工的训练项目`
+      description: customDescription || `数智员工的训练项目`,
+      createdByUserId: userId  // ⭐ 记录创建者
     });
+    // ========== CUSTOM END ==========
     console.log(`新项目创建成功: ${newProject.id}, externalId: ${employeeId}`);
 
     // 重定向到新项目的text-split页面
