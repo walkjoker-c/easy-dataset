@@ -7,6 +7,8 @@ ai-local.json
 .DS_Store
 tsconfig.tsbuildinfo
 mock-login-callback.ts
+# 环境变量文件 (包含敏感信息,不应提交)
+.env
 .env.local
 /src/test/crawler
 /src/test/mock
