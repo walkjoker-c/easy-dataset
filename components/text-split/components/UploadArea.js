@@ -34,7 +34,9 @@ export default function UploadArea({
   onUpload,
   selectedModel,
   // CUSTOM: REQ-003 - TASK-003 - 添加project参数
-  project
+  project,
+  // CUSTOM: REQ-003 - 从 Server Component 传递的运行时环境变量
+  obsDefaultEnv
 }) {
   const { t } = useTranslation();
   const [dragActive, setDragActive] = useState(false);
@@ -362,6 +364,7 @@ export default function UploadArea({
         open={obsBrowserOpen}
         onClose={() => setObsBrowserOpen(false)}
         project={project}
+        obsDefaultEnv={obsDefaultEnv}
         onConfirm={handleOBSFilesConfirm}
       />
 

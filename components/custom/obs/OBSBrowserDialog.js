@@ -37,19 +37,19 @@ import CloudIcon from '@mui/icons-material/Cloud';
 import { useTranslation } from 'react-i18next';
 import OBSFileList from './OBSFileList';
 
-export default function OBSBrowserDialog({ open, onClose, project, onConfirm }) {
+export default function OBSBrowserDialog({ open, onClose, project, obsDefaultEnv, onConfirm }) {
   const { t } = useTranslation();
 
-  // CUSTOM: REQ-003 - 2025-11-11 - 添加NEXT_PUBLIC_OBS_DEFAULT_ENV环境变量支持
-  // 从环境变量读取默认环境配置，支持dev/test/prod三个值
-  // 注意: 客户端组件只能访问NEXT_PUBLIC_前缀的环境变量
-  const defaultEnv = process.env.NEXT_PUBLIC_OBS_DEFAULT_ENV || '';
+  // CUSTOM: REQ-003 - 2025-11-11 - 支持运行时环境变量配置
+  // 从 Server Component 传递的 prop 读取环境配置（支持运行时修改）
+  // 支持dev/test/prod三个值
+  const defaultEnv = obsDefaultEnv || '';
   const isValidEnv = ['dev', 'test', 'prod'].includes(defaultEnv);
 
   // 调试日志
   console.log('[OBSBrowserDialog] Rendered with project:', project);
   console.log('[OBSBrowserDialog] project.externalId:', project?.externalId);
-  console.log('[OBSBrowserDialog] OBS_DEFAULT_ENV:', defaultEnv, 'isValid:', isValidEnv);
+  console.log('[OBSBrowserDialog] obsDefaultEnv (runtime):', defaultEnv, 'isValid:', isValidEnv);
 
   // 状态管理
   // CUSTOM: REQ-003 - 2025-11-11 - 如果有有效的环境变量配置，使用它作为默认值

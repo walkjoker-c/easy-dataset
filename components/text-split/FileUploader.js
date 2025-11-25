@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 
 export default function FileUploader({
   projectId,
+  obsDefaultEnv, // CUSTOM: REQ-003 - 从 Server Component 传递的运行时环境变量
   onUploadSuccess,
   onFileDeleted,
   sendToPages,
@@ -322,6 +323,7 @@ export default function FileUploader({
                 onUpload={uploadFiles}
                 selectedModel={selectedModelInfo}
                 project={project}
+                obsDefaultEnv={obsDefaultEnv}
               />
             </Grid>
 
