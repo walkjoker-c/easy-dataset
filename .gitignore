@@ -8,12 +8,15 @@ ai-local.json
 tsconfig.tsbuildinfo
 mock-login-callback.ts
 # 环境变量文件
+.env
 .env.local
 /src/test/crawler
 /src/test/mock
 /test
 /dist
-/prisma/*.sqlite
+# 忽略数据库备份文件,但保留 db.sqlite 以供初始化使用
+/prisma/db.sqlite-*
+/prisma/*.sqlite-journal
 .idea
 !local-db/empty.txt
 /local-db

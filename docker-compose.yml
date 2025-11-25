@@ -1,10 +1,13 @@
 services:
   easy-dataset:
-    image: ghcr.io/conardli/easy-dataset
+    image: ghcr.io/conardli/easy-dataset  # 优先使用远程镜像 (快速启动)
+    build: .  # 同时支持本地构建 (自定义修改,使用 docker compose up --build)
     container_name: easy-dataset
     ports:
       - '1717:1717'
     volumes:
       - ./local-db:/app/local-db
-      # - ./prisma:/app/prisma 如果需要挂载请先手动初始化数据库文件
+      - ./prisma:/app/prisma  # 挂载 prisma 目录 (包含初始化的 db.sqlite)
+    env_file:
+      - .env  # 自动加载环境变量
     restart: unless-stopped
