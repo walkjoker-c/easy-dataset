@@ -67,10 +67,19 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/electron ./electron
-COPY --from=builder /app/prisma ./prisma
+
+# 复制 prisma 到模板目录 (用于自动初始化数据库)
+COPY --from=builder /app/prisma /app/prisma-template
+
+# 复制并设置 entrypoint 脚本
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # 设置生产环境
 ENV NODE_ENV=production
 
 EXPOSE 1717
+
+# 使用 entrypoint 脚本
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["pnpm", "start"]

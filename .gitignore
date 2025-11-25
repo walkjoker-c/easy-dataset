@@ -14,7 +14,8 @@ mock-login-callback.ts
 /src/test/mock
 /test
 /dist
-# 忽略数据库备份文件,但保留 db.sqlite 以供初始化使用
+# 忽略运行时数据库文件 (容器启动时从模板自动初始化)
+/prisma/db.sqlite
 /prisma/db.sqlite-*
 /prisma/*.sqlite-journal
 .idea
