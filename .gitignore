@@ -19,6 +19,9 @@ mock-login-callback.ts
 /prisma/db.sqlite-*
 /prisma/*.sqlite-journal
 .idea
+# 忽略项目文档和脚本 (本地维护)
+/docs
+/scripts
 !local-db/empty.txt
 /local-db
 prisma/local-db/db.sqlite
