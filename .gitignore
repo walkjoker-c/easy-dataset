@@ -10,6 +10,7 @@ mock-login-callback.ts
 # 环境变量文件
 .env
 .env.local
+.env.local.example
 /src/test/crawler
 /src/test/mock
 /test
@@ -22,6 +23,8 @@ mock-login-callback.ts
 # 忽略项目文档和脚本 (本地维护)
 /docs
 /scripts
+# 本地开发配置文件
+docker-compose.local.yml
 !local-db/empty.txt
 /local-db
 prisma/local-db/db.sqlite
