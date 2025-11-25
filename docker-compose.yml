@@ -1,7 +1,7 @@
 services:
   easy-dataset:
-    image: ghcr.io/conardli/easy-dataset  # 优先使用远程镜像 (快速启动)
-    build: .  # 同时支持本地构建 (自定义修改,使用 docker compose up --build)
+    image: swr.cn-south-1.myhuaweicloud.com/test2.0/easy-dataset:latest  # 华为云镜像 (自动拉取最新版本)
+    build: .  # 同时支持本地构建 (使用 docker compose up --build)
     container_name: easy-dataset
     ports:
       - '1717:1717'
