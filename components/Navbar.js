@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -121,6 +121,33 @@ export default function Navbar({ projects = [], currentProject }) {
   const handleSourceMenuMouseLeave = () => {
     setSourceMenuAnchor(null);
   };
+
+  // ========== CUSTOM START ==========
+  // 定制说明: 修复页面首次加载时模型列表未初始化问题
+  // 问题: 创建项目后跳转到text-split页面,Navbar组件渲染但未触发API调用
+  //       导致modelConfigListAtom保持localStorage中的旧值(可能为null),引发filter错误
+  // 解决: 添加useEffect在currentProject变化时自动加载模型列表
+  // 修改日期: 2025-11-26 | 修改人: @amx
+  useEffect(() => {
+    if (currentProject) {
+      axios
+        .get(`/api/projects/${currentProject}/model-config`)
+        .then(response => {
+          setConfigList(response.data.data);
+          if (response.data.defaultModelConfigId) {
+            setSelectedModelInfo(response.data.data.find(item => item.id === response.data.defaultModelConfigId));
+          } else {
+            setSelectedModelInfo('');
+          }
+        })
+        .catch(error => {
+          console.error('Failed to load model config on mount:', error);
+          // 失败时设置为空数组,避免null导致的filter错误
+          setConfigList([]);
+        });
+    }
+  }, [currentProject, setConfigList, setSelectedModelInfo]);
+  // ========== CUSTOM END ==========
 
   const handleProjectChange = event => {
     const newProjectId = event.target.value;

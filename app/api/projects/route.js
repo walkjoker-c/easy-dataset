@@ -4,6 +4,12 @@ import { createInitModelConfig, getModelConfigByProjectId } from '@/lib/db/model
 import { MODEL_PROVIDERS, DEFAULT_PROJECT_MODEL_PROVIDER_ID } from '@/constant/model';
 import { nanoid } from 'nanoid';
 // ========== CUSTOM START ==========
+// 定制说明: 修复全新环境模型列表为空问题 - 预填充默认模型列表和Provider
+// 修改日期: 2025-11-26 | 修改人: @amx
+import { createLlmModels, getLlmModelsByProviderId } from '@/lib/db/llm-models';
+import { db } from '@/lib/db/index';
+// ========== CUSTOM END ==========
+// ========== CUSTOM START ==========
 // ISS-006: 导入Session管理 - 支持super_user项目过滤
 // 修改日期: 2025-11-18
 import { getSession } from '@/lib/custom/auth/session';
@@ -110,6 +116,54 @@ export async function POST(request) {
         newProject.defaultModelConfigId = defaultModelConfig.id;
         await updateProject(newProject.id, newProject);
         // END CUSTOM
+
+        // ========== CUSTOM START ==========
+        // 定制说明: 预填充默认Provider和模型列表
+        // 问题: 全新环境下,LlmProviders和llmModels表为空,导致前端models列表为null,用户必须手动点击刷新
+        // 解决: 创建ModelConfig时,先创建Provider记录,再预填充defaultModels到数据库
+        // 修改日期: 2025-11-26 | 修改人: @amx
+        try {
+          // Step 1: 检查并创建 LlmProvider 记录 (外键依赖)
+          const existingProvider = await db.llmProviders.findUnique({
+            where: { id: defaultProvider.id }
+          });
+
+          if (!existingProvider) {
+            await db.llmProviders.create({
+              data: {
+                id: defaultProvider.id,
+                name: defaultProvider.name,
+                apiUrl: defaultProvider.defaultEndpoint
+              }
+            });
+            console.log(`[Projects API POST] Created LlmProvider: ${defaultProvider.id}`);
+          }
+
+          // Step 2: 检查并创建默认模型列表
+          const existingModels = await getLlmModelsByProviderId(defaultProvider.id);
+
+          if (!existingModels || existingModels.length === 0) {
+            const defaultModels = defaultProvider.defaultModels
+              .filter(modelName => modelName) // 过滤空值
+              .map(modelName => ({
+                id: nanoid(12),
+                providerId: defaultProvider.id,
+                modelId: modelName,
+                modelName: modelName
+                // 注意: LlmModels表只有id, modelId, modelName, providerId, createAt, updateAt字段
+                // 没有status字段, createAt/updateAt由数据库自动生成
+              }));
+
+            if (defaultModels.length > 0) {
+              await createLlmModels(defaultModels);
+              console.log(`[Projects API POST] Initialized ${defaultModels.length} default models for provider ${defaultProvider.id}`);
+            }
+          }
+        } catch (modelError) {
+          // 不阻塞项目创建,仅记录错误
+          console.error('[Projects API POST] Failed to initialize default models:', modelError);
+        }
+        // ========== CUSTOM END ==========
       }
     }
     return Response.json(newProject, { status: 201 });

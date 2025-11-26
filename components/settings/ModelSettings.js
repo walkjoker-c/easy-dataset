@@ -497,11 +497,14 @@ export default function ModelSettings({ projectId }) {
               />
             </Grid>
             {/*模型列表*/}
+            {/* ========== CUSTOM START ========== */}
+            {/* 定制说明: 修复 models 为 null 时报错 "Cannot read properties of null (reading 'filter')" */}
+            {/* 修改日期: 2025-11-26 | 修改人: @amx */}
             <Grid item xs={12} style={{ display: 'flex', alignItems: 'center' }}>
               <FormControl style={{ width: '70%' }}>
                 <Autocomplete
                   freeSolo
-                  options={models
+                  options={(models || [])
                     .filter(model => model && model.modelName)
                     .map(model => ({
                       label: model.modelName,
@@ -536,6 +539,7 @@ export default function ModelSettings({ projectId }) {
                 {t('models.refresh')}
               </Button>
             </Grid>
+            {/* ========== CUSTOM END ========== */}
             {/* 新增：视觉模型选择项 */}
             <Grid item xs={12}>
               <FormControl fullWidth>
