@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 import { getProjectChunks } from '@/lib/file/text-splitter';
 import { getTaskConfig } from '@/lib/db/projects';
 import { getChunkById } from '@/lib/db/chunks';
-import { generateQuestionsForChunk, generateQuestionsForChunkWithGA } from '@/lib/services/questions';
+// ========== CUSTOM CHANGE ==========
+// 修改说明: 使用增强版 index-enhanced.js 替代原 index.js,支持多格式容错
+// 修改日期: 2025-01-XX | 修改人: @amx
+import { generateQuestionsForChunk, generateQuestionsForChunkWithGA } from '@/lib/services/questions/index-enhanced';
+// ========== CUSTOM CHANGE END ==========
 
 // 批量生成问题
 export async function POST(request, { params }) {

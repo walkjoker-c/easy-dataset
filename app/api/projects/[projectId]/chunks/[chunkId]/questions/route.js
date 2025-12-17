@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getQuestionsForChunk } from '@/lib/db/questions';
 import logger from '@/lib/util/logger';
-import questionService from '@/lib/services/questions';
+// ========== CUSTOM CHANGE ==========
+// 修改说明: 使用增强版 index-enhanced.js 替代原 index.js,支持多格式容错
+// 修改日期: 2025-01-XX | 修改人: @amx
+import questionService from '@/lib/services/questions/index-enhanced';
+// ========== CUSTOM CHANGE END ==========
 
 // 为指定文本块生成问题
 export async function POST(request, { params }) {
