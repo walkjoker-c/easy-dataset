@@ -21,7 +21,13 @@ import {
   Switch,
   Pagination,
   TextField,
-  InputAdornment
+  InputAdornment,
+  // ========== CUSTOM START ==========
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
+  // ========== CUSTOM END ==========
 } from '@mui/material';
 import {
   Visibility as VisibilityIcon,
@@ -69,6 +75,12 @@ export default function FileList({
   const [projectModel, setProjectModel] = useState(null);
   const [loadingModel, setLoadingModel] = useState(false);
   const [appendMode, setAppendMode] = useState(false);
+
+  // ========== CUSTOM START ==========
+  // 定制说明: 添加每个文件生成数量选项
+  // 修改日期: 2025-12-23 | 功能: 支持选择每个文件生成多少组GA对
+  const [pairsPerFile, setPairsPerFile] = useState(5);
+  // ========== CUSTOM END ==========
 
   // 搜索相关状态
   const [searchTerm, setSearchTerm] = useState('');
@@ -282,7 +294,9 @@ export default function FileList({
     }
   };
 
-  // 新增：批量生成GA对的处理函数
+  // ========== CUSTOM START ==========
+  // 定制说明: 修改批量生成函数,支持每个文件生成多组GA对
+  // 修改日期: 2025-12-23 | 功能: 串行生成多组GA对
   const handleBatchGenerateGAPairs = async () => {
     if (array.length === 0) {
       setGenError(t('gaPairs.selectAtLeastOneFile'));
@@ -318,60 +332,90 @@ export default function FileList({
       // 获取当前语言环境
       const currentLanguage = i18n.language === 'en' ? 'en' : '中文';
 
-      const requestData = {
-        fileIds: stringFileIds,
-        modelConfigId: modelToUse.id,
-        language: currentLanguage,
-        appendMode: appendMode
-      };
+      // 计算需要生成的批次数 (每批5个)
+      const batchesPerFile = pairsPerFile / 5;
+      let totalSuccess = 0;
+      let totalFiles = stringFileIds.length;
 
-      const response = await fetch(`/api/projects/${projectId}/batch-generateGA`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData)
+      // 为每个文件串行生成多批次
+      for (let fileIndex = 0; fileIndex < stringFileIds.length; fileIndex++) {
+        const fileId = stringFileIds[fileIndex];
+        let fileSkipped = false; // 标记文件是否被跳过
+
+        // 每个文件生成多批次
+        for (let batchIndex = 0; batchIndex < batchesPerFile; batchIndex++) {
+          const requestData = {
+            fileIds: [fileId], // 每次只处理一个文件
+            modelConfigId: modelToUse.id,
+            language: currentLanguage,
+            // 关键修正: 第一批使用用户设置,后续批次强制追加
+            appendMode: batchIndex > 0 ? true : appendMode
+          };
+
+          const response = await fetch(`/api/projects/${projectId}/batch-generateGA`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+          });
+
+          const responseText = await response.text();
+
+          if (!response.ok) {
+            const errorData = await response
+              .json()
+              .catch(() => ({ error: t('gaPairs.requestFailed', { status: response.status }) }));
+            throw new Error(errorData.error || t('gaPairs.requestFailed', { status: response.status }));
+          }
+
+          const result = JSON.parse(responseText);
+
+          // 检查是否被跳过(第一批且文件已有GA对)
+          if (result.success && result.data && result.data[0]) {
+            if (result.data[0].skipped) {
+              fileSkipped = true;
+              console.log(`文件 ${fileId} 已有GA对,跳过生成`);
+              break; // 跳过该文件的所有批次
+            }
+
+            if (result.data[0].success) {
+              if (batchIndex === batchesPerFile - 1) {
+                totalSuccess++; // 只在完成所有批次后计数
+              }
+            }
+          }
+
+          // 等待一下避免请求过快
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      setGenResult({
+        total: totalFiles,
+        success: totalSuccess
       });
 
-      const responseText = await response.text();
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: t('gaPairs.requestFailed', { status: response.status }) }));
-        throw new Error(errorData.error || t('gaPairs.requestFailed', { status: response.status }));
+      // 成功后清空选择状态
+      setArray([]);
+      if (typeof sendToFileUploader === 'function') {
+        sendToFileUploader([]);
       }
 
-      const result = JSON.parse(responseText);
+      console.log(t('gaPairs.batchGenerationSuccess', { count: totalSuccess }));
 
-      if (result.success) {
-        setGenResult({
-          total: result.data?.length || 0,
-          success: result.data?.filter(r => r.success).length || 0
-        });
+      //发送全局刷新事件
+      const successfulFileIds = stringFileIds.filter((_, index) => index < totalSuccess);
 
-        // 成功后清空选择状态
-        setArray([]);
-        if (typeof sendToFileUploader === 'function') {
-          sendToFileUploader([]);
-        }
-
-        console.log(t('gaPairs.batchGenerationSuccess', { count: result.summary?.success || 0 }));
-
-        //发送全局刷新事件
-        const successfulFileIds = result.data?.filter(item => item.success)?.map(item => String(item.fileId)) || [];
-
-        if (successfulFileIds.length > 0) {
-          window.dispatchEvent(
-            new CustomEvent('refreshGaPairsIndicators', {
-              detail: {
-                projectId,
-                fileIds: successfulFileIds
-              }
-            })
-          );
-        }
-      } else {
-        setGenError(result.error || t('gaPairs.generationFailed'));
+      if (successfulFileIds.length > 0) {
+        window.dispatchEvent(
+          new CustomEvent('refreshGaPairsIndicators', {
+            detail: {
+              projectId,
+              fileIds: successfulFileIds
+            }
+          })
+        );
       }
+      // ========== CUSTOM END ==========
     } catch (error) {
       console.error(t('gaPairs.batchGenerationFailed'), error);
       setGenError(t('gaPairs.generationError', { error: error.message || t('common.unknownError') }));
@@ -667,6 +711,30 @@ export default function FileList({
           {!genResult && (
             <DialogContentText>
               {t('gaPairs.batchGenerateDescription', { count: array.length })}
+
+              {/* ========== CUSTOM START ========== */}
+              {/* 定制说明: 添加每个文件生成数量选择器 */}
+              {/* 修改日期: 2025-12-23 | 功能: 选择每个文件生成多少组GA对 */}
+              <Box sx={{ mt: 2, mb: 2 }}>
+                <FormControl fullWidth>
+                  <InputLabel>每个文件生成数量</InputLabel>
+                  <Select
+                    value={pairsPerFile}
+                    label="每个文件生成数量"
+                    onChange={e => setPairsPerFile(e.target.value)}
+                  >
+                    <MenuItem value={5}>5 个 (1 批次)</MenuItem>
+                    <MenuItem value={10}>10 个 (2 批次)</MenuItem>
+                    <MenuItem value={15}>15 个 (3 批次)</MenuItem>
+                    <MenuItem value={20}>20 个 (4 批次)</MenuItem>
+                    <MenuItem value={25}>25 个 (5 批次)</MenuItem>
+                    <MenuItem value={30}>30 个 (6 批次)</MenuItem>
+                    <MenuItem value={40}>40 个 (8 批次)</MenuItem>
+                    <MenuItem value={50}>50 个 (10 批次)</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+              {/* ========== CUSTOM END ========== */}
 
               {/* 追加模式选择 */}
               <Box sx={{ mt: 2, mb: 2 }}>
